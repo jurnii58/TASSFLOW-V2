@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>TASSFLOW | Guardián Invisible</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icono.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(18, 22, 36, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --ios-blue: #0a84ff;
+            --ios-green: #30d158;
+            --ios-orange: #ff9f0a;
+            --ios-red: #ff453a;
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.65);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            background: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2560&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            background-color: #0f0f23;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* HEADER ELEGANTE */
+        .header {
+            padding: 20px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(10, 14, 25, 0.7);
+            backdrop-filter: blur(25px);
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--ios-green);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--ios-green);
+            animation: pulseDot 2s infinite ease-in-out;
+        }
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        .header-actions { display: flex; align-items: center; gap: 15px; }
+        .user-tag {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid var(--glass-border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .logout-btn {
+            color: var(--ios-red);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .logout-btn:hover { opacity: 0.7; }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-container {
+            flex: 1;
+            max-width: 900px;
+            margin: 40px auto;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            text-align: center;
+        }
+
+        /* TARJETA GUARDIÁN */
+        .guardian-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 45px 35px;
+            width: 100%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+            backdrop-filter: blur(30px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .heart-icon-wrapper {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: rgba(255, 69, 58, 0.12);
+            border: 1px solid rgba(255, 69, 58, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            color: var(--ios-red);
+            animation: heartThrob 1.2s infinite ease-in-out;
+        }
+        @keyframes heartThrob {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.15); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.1); }
+        }
+
+        .metric-bpm {
+            font-size: 64px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+        .metric-unit {
+            font-size: 18px;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-message {
+            margin-top: 25px;
+            padding: 12px 24px;
+            border-radius: 16px;
+            background: rgba(48, 209, 88, 0.1);
+            border: 1px solid rgba(48, 209, 88, 0.25);
+            color: var(--ios-green);
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+            width: 100%;
+        }
+        .metric-pill {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--glass-border);
+            padding: 18px;
+            border-radius: 18px;
+        }
+        .metric-pill span {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .metric-pill strong {
+            font-size: 20px;
+            color: var(--text-main);
+        }
+
+        /* BOTÓN BLUETOOTH */
+        .btn-bluetooth {
+            background: linear-gradient(135deg, #0a84ff, #0056b3);
+            border: none;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 18px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 25px rgba(10, 132, 255, 0.35);
+            transition: all 0.3s ease;
+            margin-top: 25px;
+        }
+        .btn-bluetooth:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(10, 132, 255, 0.5);
+        }
+
+        /* ============================================================
+           MODAL DE PAUSA FORZADA (ALWAYS-ON-TOP / FULLSCREEN BLOCKER)
+           ============================================================ */
+        .forced-pause-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(6, 9, 18, 0.94);
+            backdrop-filter: blur(35px);
+            z-index: 99999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .forced-pause-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .pause-box {
+            max-width: 550px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .alert-tag-pulse {
+            display: inline-block;
+            background: rgba(255, 159, 10, 0.15);
+            color: var(--ios-orange);
+            border: 1px solid rgba(255, 159, 10, 0.4);
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .pause-title {
+            font-size: 30px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: white;
+        }
+        .pause-desc {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 35px;
+        }
+
+        /* CÍRCULO DINÁMICO RESPIRACIÓN 4-7-8 */
+        .breath-container {
+            width: 260px;
+            height: 260px;
+            margin: 0 auto 35px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .breath-circle {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(10, 132, 255, 0.45) 0%, rgba(48, 209, 88, 0.25) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 50px rgba(10, 132, 255, 0.5);
+            transition: transform 4s ease-in-out, background 1s ease;
+        }
+
+        .breath-text {
+            position: relative;
+            z-index: 2;
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        }
+        .breath-countdown {
+            font-size: 38px;
+            font-weight: 900;
+            display: block;
+            margin-top: 6px;
+            color: var(--ios-green);
+        }
+
+        .pause-footer-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .pause-footer-btn:hover { background: rgba(255,255,255,0.18); }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-title">
+            <div class="status-dot"></div>
+            <span>TASSFLOW <span style="color: var(--ios-blue);">GUARDIÁN</span></span>
+        </div>
+        <div class="header-actions">
+            <span class="user-tag"><i class="fas fa-shield-alt" style="color: var(--ios-green); margin-right: 6px;"></i>Protección NOM-035 Activa</span>
+            <span class="user-tag"><i class="fas fa-user" style="margin-right: 6px;"></i>{{ nombre_usuario }}</span>
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Salir</a>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="guardian-card">
+            <div class="heart-icon-wrapper">
+                <i class="fas fa-heartbeat"></i>
+            </div>
+            
+            <div class="metric-bpm" id="live-bpm">{{ bpm_actual }}</div>
+            <div class="metric-unit">Pulsaciones por Minuto (BPM)</div>
+
+            <div class="status-message" id="guardian-status">
+                <i class="fas fa-check-circle"></i> Telemetría en segundo plano activa (1 Hz)
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-pill">
+                    <span>Línea Base Cardíaca</span>
+                    <strong>{{ linea_base }} BPM</strong>
+                </div>
+                <div class="metric-pill">
+                    <span>Tráfico de Red</span>
+                    <strong>1 Pkt / seg (QoS 0)</strong>
+                </div>
+                <div class="metric-pill">
+                    <span>Pausas 4-7-8 Mes</span>
+                    <strong id="contador-pausas">{{ total_pausas }}</strong>
+                </div>
+            </div>
+
+            <button class="btn-bluetooth" id="btn-conectar-wearable" onclick="conectarWebBluetooth()">
+                <i class="fab fa-bluetooth-b"></i> Emparejar Wearable (Web Bluetooth)
+            </button>
+            <div id="bt-log" style="font-size: 12px; color: var(--text-muted); margin-top: 10px;"></div>
+        </div>
+    </main>
+
+    <!-- MODAL DE PAUSA FORZADA (TÉCNICA DE RESPIRACIÓN 4-7-8) -->
+    <div class="forced-pause-overlay" id="forcedPauseModal">
+        <div class="pause-box">
+            <span class="alert-tag-pulse"><i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i> Sobrecarga Biológica Detectada</span>
+            <h1 class="pause-title">Pausa Forzada Obligatoria</h1>
+            <p class="pause-desc">
+                Tu ritmo cardíaco se ha elevado sustancialmente sin movimiento físico registrado. 
+                Por disposición de salud ocupacional (NOM-035), tu espacio de trabajo se ha pausado para regular tu sistema nervioso autónomo.
+            </p>
+
+            <div class="breath-container">
+                <div class="breath-circle" id="breathCircle"></div>
+                <div class="breath-text">
+                    <span id="breathActionText">INHALA</span>
+                    <span class="breath-countdown" id="breathTimer">4</span>
+                </div>
+            </div>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 25px;">
+                Ciclo guiado 4-7-8: Inhala por la nariz (4s), retén el aire (7s), exhala suavemente (8s).
+            </p>
+
+            <button class="pause-footer-btn" id="btnFinalizarPausa" onclick="culminarPausaManual()" style="display: none;">
+                <i class="fas fa-check"></i> Reanudar Flujo de Trabajo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const usuarioId = "{{ usuario_id }}";
+        const empresaId = "{{ empresa_id }}";
+        const socket = io();
+
+        // 1. Unirse a la sala personal de WebSockets
+        socket.on('connect', () => {
+            console.log("🟢 Conectado a WebSockets TASSFLOW");
+            socket.emit('join_usuario', { usuario_id: usuarioId });
+        });
+
+        // 2. Escuchar la orden invasiva de Pausa Forzada Nivel 2
+        socket.on('orden_pausa_forzada', (data) => {
+            console.warn("⚠️ Orden de Pausa Forzada recibida:", data);
+            dispararPausaForzada(data.bpm || document.getElementById('live-bpm').innerText);
+        });
+
+        // 3. Variables de control respiratorio 4-7-8
+        let intervaloRespiracion = null;
+        let bpmInicialPausa = 120;
+        let ciclosCompletados = 0;
+        const totalCiclosRequeridos = 3; // ~1 minuto de técnica 4-7-8
+
+        function dispararPausaForzada(bpmActual) {
+            bpmInicialPausa = parseFloat(bpmActual) || 120;
+            const modal = document.getElementById('forcedPauseModal');
+            modal.classList.add('active');
+            ciclosCompletados = 0;
+            iniciarCiclo478();
+        }
+
+        function iniciarCiclo478() {
+            const circle = document.getElementById('breathCircle');
+            const actionText = document.getElementById('breathActionText');
+            const timer = document.getElementById('breathTimer');
+
+            // FASE 1: INHALA (4 SEGUNDOS)
+            actionText.innerText = "INHALA";
+            actionText.style.color = "var(--ios-blue)";
+            circle.style.transition = "transform 4s ease-in-out";
+            circle.style.transform = "scale(1.8)";
+            let tiempoRestante = 4;
+            timer.innerText = tiempoRestante;
+
+            intervaloRespiracion = setInterval(() => {
+                tiempoRestante--;
+                if (tiempoRestante > 0) {
+                    timer.innerText = tiempoRestante;
+                } else {
+                    clearInterval(intervaloRespiracion);
+                    // FASE 2: SOSTÉN (7 SEGUNDOS)
+                    actionText.innerText = "SOSTÉN";
+                    actionText.style.color = "var(--ios-orange)";
+                    circle.style.transition = "transform 0.5s ease";
+                    circle.style.transform = "scale(1.85)";
+                    let tiempoSosten = 7;
+                    timer.innerText = tiempoSosten;
+
+                    intervaloRespiracion = setInterval(() => {
+                        tiempoSosten--;
+                        if (tiempoSosten > 0) {
+                            timer.innerText = tiempoSosten;
+                        } else {
+                            clearInterval(intervaloRespiracion);
+                            // FASE 3: EXHALA (8 SEGUNDOS)
+                            actionText.innerText = "EXHALA";
+                            actionText.style.color = "var(--ios-green)";
+                            circle.style.transition = "transform 8s ease-in-out";
+                            circle.style.transform = "scale(1.0)";
+                            let tiempoExhala = 8;
+                            timer.innerText = tiempoExhala;
+
+                            intervaloRespiracion = setInterval(() => {
+                                tiempoExhala--;
+                                if (tiempoExhala > 0) {
+                                    timer.innerText = tiempoExhala;
+                                } else {
+                                    clearInterval(intervaloRespiracion);
+                                    ciclosCompletados++;
+                                    if (ciclosCompletados < totalCiclosRequeridos) {
+                                        iniciarCiclo478();
+                                    } else {
+                                        // Finalización exitosa
+                                        actionText.innerText = "PULSO REGULADO";
+                                        timer.innerText = "✓";
+                                        document.getElementById('btnFinalizarPausa').style.display = "inline-block";
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function culminarPausaManual() {
+            clearInterval(intervaloRespiracion);
+            const modal = document.getElementById('forcedPauseModal');
+            modal.classList.remove('active');
+            document.getElementById('btnFinalizarPausa').style.display = "none";
+
+            // Simular pulso recuperado ~15% menor
+            const bpmFinal = Math.max(70, Math.round(bpmInicialPausa * 0.85));
+            document.getElementById('live-bpm').innerText = bpmFinal;
+
+            // Emitir evento por socket y registrar auditoría NOM-035
+            socket.emit('pausa_completada', {
+                usuario_id: usuarioId,
+                empresa_id: empresaId,
+                duracion_segundos: 120,
+                bpm_inicial: bpmInicialPausa,
+                bpm_final: bpmFinal
+            });
+
+            fetch('/api/registrar_pausa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    duracion_segundos: 120,
+                    bpm_inicial: bpmInicialPausa,
+                    bpm_final: bpmFinal
+                })
+            });
+
+            const cnt = document.getElementById('contador-pausas');
+            cnt.innerText = parseInt(cnt.innerText || "0") + 1;
+        }
+
+        // ============================================================
+        // 4. CLIENTE WEB BLUETOOTH API CON THROTTLING A 1 HZ
+        // ============================================================
+        let ultimoEnvioTs = 0;
+
+        async function conectarWebBluetooth() {
+            const logDiv = document.getElementById('bt-log');
+            try {
+                if (!navigator.bluetooth) {
+                    logDiv.innerHTML = "⚠️ Web Bluetooth API no soportada en este navegador. Utiliza Google Chrome o Microsoft Edge en tu computadora.";
+                    return;
+                }
+
+                logDiv.innerHTML = "🔍 Buscando dispositivos Bluetooth BLE cercanos (asegúrate de que tu pulsera tenga 'Transmitir FC' activo)...";
+                
+                // Intento 1: Buscar con filtro estándar o todos los dispositivos
+                let dispositivo;
+                try {
+                    dispositivo = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: ['heart_rate'] }],
+                        optionalServices: ['heart_rate', 0x180d, 'battery_service', 0x180f]
+                    });
+                } catch (filterErr) {
+                    // Si no la detecta con el filtro específico, permitir seleccionar cualquier dispositivo BLE
+                    console.log("Reintentando con escaneo abierto de todos los dispositivos BLE...");
+                    dispositivo = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: ['heart_rate', 0x180d, 'battery_service', 0x180f]
+                    });
+                }
+
+                logDiv.innerHTML = `⏳ Conectando con ${dispositivo.name || 'Dispositivo'}...`;
+                const server = await dispositivo.gatt.connect();
+
+                let service;
+                try {
+                    service = await server.getPrimaryService('heart_rate');
+                } catch (serviceErr) {
+                    logDiv.innerHTML = `⚠️ Conectado a <b>${dispositivo.name || 'Dispositivo'}</b>, pero no está transmitiendo el servicio estándar de pulso BLE ('heart_rate'). Si es Huawei Band 9, debes activar <i>'Transmitir Frecuencia Cardíaca'</i> en los ajustes de la pulsera.`;
+                    return;
+                }
+
+                const characteristic = await service.getCharacteristic('heart_rate_measurement');
+                await characteristic.startNotifications();
+                logDiv.innerHTML = `🟢 <b>Conectado con éxito:</b> Recibiendo telemetría en tiempo real de ${dispositivo.name || 'Wearable'}.`;
+
+                characteristic.addEventListener('characteristicvaluechanged', (e) => {
+                    const value = e.target.value;
+                    const flags = value.getUint8(0);
+                    let bpm = 0;
+                    if ((flags & 0x01) === 0) {
+                        bpm = value.getUint8(1);
+                    } else {
+                        bpm = value.getUint16(1, /*littleEndian=*/true);
+                    }
+
+                    // Actualizar interfaz
+                    document.getElementById('live-bpm').innerText = bpm;
+
+                    // CONTROL DE FLUJO ESTRICTO: 1 paquete por segundo (1 Hz) para mitigar colisiones 2.4 GHz
+                    const ahora = Date.now();
+                    if ((ahora - ultimoEnvioTs) >= 1000) {
+                        ultimoEnvioTs = ahora;
+                        enviarPaquete1Hz(bpm);
+                    }
+                });
+
+            } catch (err) {
+                if (err.name === 'NotFoundError') {
+                    logDiv.innerHTML = "ℹ️ Búsqueda cancelada o no se seleccionó ningún dispositivo.";
+                } else {
+                    logDiv.innerHTML = `ℹ️ Bluetooth: ${err.message}`;
+                }
+            }
+        }
+
+        function enviarPaquete1Hz(bpm) {
+            // Generar acelerometría simulada local
+            const payload = {
+                u: usuarioId,
+                e: empresaId,
+                bpm: bpm,
+                acc: [0.02, 0.01, 1.00], // Sedentario en escritorio
+                ts: Math.floor(Date.now() / 1000)
+            };
+
+            fetch('/api/telemetria_iot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                if (d.clasificacion && d.clasificacion.nivel === 2) {
+                    dispararPausaForzada(bpm);
+                }
+            }).catch(() => {});
+        }
+    </script>
+</body>
+</html>

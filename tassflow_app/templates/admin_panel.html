@@ -1,0 +1,3121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>TASSFLOW v2.0 | Monitoreo Inteligente de Carga Laboral</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icono.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icono.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(20, 20, 20, 0.55);
+            --glass-bg-hover: rgba(30, 30, 30, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border-focus: rgba(10, 132, 255, 0.45);
+            
+            --ios-blue: #0a84ff;
+            --ios-green: #30d158;
+            --ios-orange: #ff9f0a;
+            --ios-red: #ff453a;
+            --ios-purple: #bf5af2;
+            
+            --status-normal: var(--ios-green);
+            --status-atencion: var(--ios-orange);
+            --status-sobrecarga: #ff6b35;
+            --status-critico: var(--ios-red);
+
+            --text-main: #ffffff;
+            --text-white: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --text-dark-gray: rgba(255, 255, 255, 0.45);
+            --text-gray: rgba(255, 255, 255, 0.6);
+            --accent-cyan: var(--ios-blue);
+
+            --card-radius: 24px;
+            --card-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+            --btn-primary-gradient: linear-gradient(135deg, #0a84ff, #00b4d8);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", -apple-system, sans-serif;
+            background: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2560&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            background-color: #0f0f23;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* 1. SIDEBAR IZQUIERDA */
+        .sidebar {
+            width: 250px;
+            background: rgba(15, 15, 20, 0.65);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 18px;
+            flex-shrink: 0;
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            z-index: 150;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 22px;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 20px;
+            text-decoration: none;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--ios-green);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--ios-green);
+            animation: pulseDot 2s infinite ease-in-out;
+            flex-shrink: 0;
+        }
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        .brand-titles h1 {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+        .brand-titles h1 span {
+            color: var(--ios-blue);
+        }
+        .brand-titles p {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        .nav-category {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-dark-gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 16px 0 8px 10px;
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item a, .nav-item button {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            border-radius: 14px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            background: transparent;
+            border: 1px solid transparent;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+        .nav-item a:hover, .nav-item button:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        .nav-item.active a, .nav-item.active button {
+            background: rgba(10, 132, 255, 0.15);
+            color: var(--ios-blue);
+            border: 1px solid rgba(10, 132, 255, 0.35);
+        }
+        .nav-item i {
+            font-size: 15px;
+            width: 18px;
+            text-align: center;
+        }
+        .nav-badge {
+            margin-left: auto;
+            background: rgba(255, 69, 58, 0.2);
+            color: var(--ios-red);
+            border: 1px solid rgba(255, 69, 58, 0.35);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 12px;
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding-top: 20px;
+        }
+        .sidebar-status-card {
+            background: rgba(48, 209, 88, 0.1);
+            border: 1px solid rgba(48, 209, 88, 0.25);
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .sidebar-status-card .status-dot-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ios-green);
+        }
+        .sidebar-status-card p {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* 2. MAIN CONTENT AREA */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: transparent;
+        }
+
+        /* TOP HEADER */
+        .top-navbar {
+            padding: 18px 35px;
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-nav-center {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-brand-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .top-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .user-tag {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .user-tag:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .logout-btn {
+            color: var(--ios-red);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            background: rgba(255, 69, 58, 0.1);
+            border: 1px solid rgba(255, 69, 58, 0.25);
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 69, 58, 0.2);
+            color: #ff6961;
+        }
+
+        /* 3. CONTENEDOR INTERNO */
+        .content-container {
+            padding: 32px 35px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* GREETING */
+        .dashboard-greeting {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 4px;
+        }
+        .greeting-text h2 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: var(--text-main);
+        }
+        .greeting-text p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ROW 1: 4 KPIS */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+
+        .kpi-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 22px 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            transition: all 0.25s ease;
+        }
+        .kpi-card:hover {
+            border-color: rgba(10, 132, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+
+        .kpi-icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .icon-blue { background: rgba(10, 132, 255, 0.15); color: var(--ios-blue); border: 1px solid rgba(10, 132, 255, 0.3); }
+        .icon-green { background: rgba(48, 209, 88, 0.15); color: var(--ios-green); border: 1px solid rgba(48, 209, 88, 0.3); }
+        .icon-amber { background: rgba(255, 159, 10, 0.15); color: var(--ios-orange); border: 1px solid rgba(255, 159, 10, 0.3); }
+        .icon-red { background: rgba(255, 69, 58, 0.15); color: var(--ios-red); border: 1px solid rgba(255, 69, 58, 0.3); }
+
+        .kpi-body {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+        .kpi-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--text-main);
+        }
+        .kpi-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mini-progress-bar {
+            height: 5px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .mini-progress-fill {
+            height: 100%;
+            background: var(--ios-green);
+            border-radius: 4px;
+        }
+
+        /* ROW 2: ESTADO BIOMÉTRICO (DONUT) + PROMEDIO + CONEXIÓN + ALERTAS */
+        .middle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 0.9fr 1.1fr;
+            gap: 18px;
+        }
+
+        .dash-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.25s ease;
+        }
+        .dash-card:hover {
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+        .dash-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .dash-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+        .dash-card-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: -6px;
+            margin-bottom: 14px;
+        }
+
+        /* DONUT CHART CARD */
+        .donut-container {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+        .donut-svg-box {
+            position: relative;
+            width: 105px;
+            height: 105px;
+            flex-shrink: 0;
+        }
+        .donut-svg-box svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+        .donut-circle-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .donut-circle-center strong {
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text-main);
+        }
+        .donut-circle-center span {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .donut-legend-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            font-size: 11px;
+        }
+        .legend-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .legend-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+        .dot-color {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .legend-numbers {
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            gap: 8px;
+        }
+        .legend-pct {
+            color: var(--text-dark-gray);
+            font-weight: 500;
+        }
+
+        /* CARD PROMEDIO DEL EQUIPO (GUARDIAN STYLE) */
+        .bpm-metric-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .bpm-metric-val {
+            font-size: 44px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: var(--text-main);
+        }
+        .bpm-metric-unit {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .bpm-diff-badge {
+            color: var(--ios-green);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .sparkline-box {
+            height: 50px;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .sparkline-box svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .micro-pills-row {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+        }
+        .micro-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            flex: 1;
+        }
+        .micro-pill i { color: var(--ios-blue); }
+        .micro-pill strong { color: white; margin-left: 2px; }
+
+        /* CARD CONEXIÓN DEL SISTEMA */
+        .sys-conn-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+        .conn-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ios-green);
+        }
+        .conn-sub-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .conn-time-box {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--glass-border);
+        }
+        .conn-time-box small {
+            display: block;
+            font-size: 10px;
+            color: var(--text-dark-gray);
+            text-transform: uppercase;
+        }
+        .conn-time-box strong {
+            font-size: 15px;
+            font-weight: 800;
+            color: white;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* CARD ALERTAS RECIENTES */
+        .link-ver-todas {
+            color: var(--ios-blue);
+            font-size: 12px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .link-ver-todas:hover { text-decoration: underline; }
+
+        .alerts-feed-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .alert-feed-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            transition: all 0.2s;
+        }
+        .alert-feed-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+        .alert-user-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .alert-info-col {
+            flex: 1;
+            min-width: 0;
+        }
+        .alert-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .alert-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+        }
+        .alert-time-ago {
+            font-size: 9px;
+            color: var(--text-dark-gray);
+        }
+        .alert-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin: 2px 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .alert-tag-badge {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 8px;
+        }
+        .tag-sobrecarga { background: rgba(255, 107, 53, 0.18); color: #ff6b35; border: 1px solid rgba(255, 107, 53, 0.3); }
+        .tag-atencion { background: rgba(255, 159, 10, 0.18); color: var(--ios-orange); border: 1px solid rgba(255, 159, 10, 0.3); }
+        .tag-info { background: rgba(10, 132, 255, 0.18); color: var(--ios-blue); border: 1px solid rgba(10, 132, 255, 0.3); }
+
+        /* ROW 3: MAPA DE CALOR BIOMÉTRICO (HEATMAP MATRIX) */
+        .heatmap-section-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 26px 28px;
+        }
+
+        .heatmap-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .heatmap-title-box h3 {
+            font-size: 16px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+        .heatmap-title-box p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .heatmap-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .time-filter-buttons {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 3px;
+        }
+        .btn-filter-time {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-filter-time.active {
+            background: var(--ios-blue);
+            color: white;
+            box-shadow: 0 2px 8px rgba(10, 132, 255, 0.4);
+        }
+
+        .heatmap-legend-pills {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .pill-leg-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* EL MAPA DE CALOR MATRICIAL */
+        .heatmap-matrix-wrapper {
+            display: flex;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 18px 22px;
+            overflow-x: auto;
+        }
+
+        .heatmap-y-axis {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-dark-gray);
+            text-align: right;
+            padding-right: 8px;
+            user-select: none;
+            min-width: 90px;
+            font-weight: 600;
+        }
+        .y-section-title {
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .heatmap-canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 650px;
+        }
+
+        .matrix-grid-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .matrix-row {
+            display: flex;
+            gap: 4px;
+            height: 16px;
+        }
+        .matrix-cell {
+            flex: 1;
+            height: 100%;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        .matrix-cell:hover {
+            transform: scale(1.3);
+            z-index: 10;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .c-normal { background: var(--ios-green); color: var(--ios-green); }
+        .c-atencion { background: var(--ios-orange); color: var(--ios-orange); }
+        .c-sobrecarga { background: #ff6b35; color: #ff6b35; }
+        .c-critico { background: var(--ios-red); color: var(--ios-red); }
+
+        .heatmap-x-timeline {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-dark-gray);
+            margin-top: 8px;
+            padding-top: 4px;
+            border-top: 1px dashed rgba(255,255,255,0.08);
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ROW 4: TABLA DE COLABORADORES + ANÁLISIS */
+        .bottom-split-grid {
+            display: grid;
+            grid-template-columns: 2.1fr 1fr;
+            gap: 18px;
+        }
+
+        .table-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 26px 28px;
+        }
+
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .table-toolbar h3 {
+            font-size: 15px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+
+        .table-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .search-input-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-input-box i {
+            position: absolute;
+            left: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .search-field {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            color: white;
+            font-size: 12px;
+            padding: 8px 14px 8px 34px;
+            border-radius: 12px;
+            outline: none;
+            width: 170px;
+            transition: all 0.2s;
+        }
+        .search-field:focus {
+            border-color: var(--ios-blue);
+            width: 210px;
+        }
+
+        .filter-select {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+        .filter-select option {
+            background: #121624;
+            color: white;
+        }
+
+        /* BOTÓN DAR DE ALTA (MATCHES .btn-bluetooth EXACTLY) */
+        .btn-add-collaborator {
+            background: var(--btn-primary-gradient);
+            border: none;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 10px 25px rgba(10, 132, 255, 0.35);
+            transition: all 0.25s ease;
+        }
+        .btn-add-collaborator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(10, 132, 255, 0.5);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 12px 14px;
+            color: var(--text-dark-gray);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .data-table td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            vertical-align: middle;
+        }
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+            color: white;
+        }
+        .colab-name-cell {
+            font-weight: 700;
+            color: white;
+        }
+        .bpm-cell {
+            font-weight: 800;
+            color: white;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-pill {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 12px;
+            text-transform: capitalize;
+        }
+        .pill-normal { background: rgba(48, 209, 88, 0.12); color: var(--ios-green); border: 1px solid rgba(48, 209, 88, 0.3); }
+        .pill-atencion { background: rgba(255, 159, 10, 0.12); color: var(--ios-orange); border: 1px solid rgba(255, 159, 10, 0.3); }
+        .pill-sobrecarga { background: rgba(255, 107, 53, 0.15); color: #ff6b35; border: 1px solid rgba(255, 107, 53, 0.35); }
+        .pill-critico { background: rgba(255, 69, 58, 0.18); color: var(--ios-red); border: 1px solid rgba(255, 69, 58, 0.45); }
+
+        .btn-table-action {
+            background: transparent;
+            border: none;
+            color: var(--text-dark-gray);
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .btn-table-action:hover {
+            color: var(--ios-blue);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* CARD ANÁLISIS INTELIGENTE */
+        .ai-analysis-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 26px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ai-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ai-title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ai-icon-bubble {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: rgba(191, 90, 242, 0.15);
+            color: var(--ios-purple);
+            border: 1px solid rgba(191, 90, 242, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .ai-title-group strong {
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .badge-ai-active {
+            background: rgba(48, 209, 88, 0.12);
+            border: 1px solid rgba(48, 209, 88, 0.3);
+            color: var(--ios-green);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 8px;
+        }
+
+        .ai-specs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+        }
+        .ai-spec-col small {
+            display: block;
+            font-size: 10px;
+            color: var(--text-dark-gray);
+        }
+        .ai-spec-col span {
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .btn-ver-analisis {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--ios-blue);
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+        }
+        .btn-ver-analisis:hover {
+            background: rgba(10, 132, 255, 0.15);
+            border-color: rgba(10, 132, 255, 0.35);
+            color: white;
+        }
+
+        .ai-unusual-card {
+            background: rgba(191, 90, 242, 0.1);
+            border: 1px solid rgba(191, 90, 242, 0.25);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .ai-unusual-icon {
+            font-size: 14px;
+            color: var(--ios-purple);
+            margin-top: 2px;
+        }
+        .ai-unusual-text strong {
+            display: block;
+            font-size: 12px;
+            color: white;
+            margin-bottom: 2px;
+        }
+        .ai-unusual-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        /* MODALES UNIFICADOS (MATCH DIRECTOR FROSTED GLASS) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: rgba(20, 20, 20, 0.80);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 480px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            animation: scaleUp 0.25s ease;
+        }
+        @keyframes scaleUp { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            font-size: 17px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+        .btn-modal-close {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: var(--text-muted);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-modal-close:hover {
+            color: white;
+            background: rgba(255, 69, 58, 0.2);
+            border-color: rgba(255, 69, 58, 0.3);
+        }
+
+        .modal-form-group {
+            margin-bottom: 16px;
+        }
+        .modal-form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            background: rgba(0, 0, 0, 0.35);
+            color: white;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .modal-input:focus {
+            border-color: var(--ios-blue);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-btn-submit {
+            background: var(--btn-primary-gradient);
+            border: none;
+            color: white;
+            width: 100%;
+            padding: 13px;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 10px 25px rgba(10, 132, 255, 0.35);
+            transition: all 0.25s ease;
+        }
+        .modal-btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(10, 132, 255, 0.5);
+        }
+
+        /* MODAL GRANDE Y TABS */
+        .modal-box-lg { max-width: 680px; }
+        .modal-box-xl { max-width: 860px; }
+        .modal-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 12px;
+        }
+        .modal-tab-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-tab-btn.active {
+            background: rgba(10, 132, 255, 0.15);
+            border-color: rgba(10, 132, 255, 0.4);
+            color: var(--ios-blue);
+        }
+        .modal-tab-content { display: none; }
+        .modal-tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+
+        /* MODAL DE SIMULACIÓN BIOMÉTRICA */
+        .sim-popover {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            background: rgba(20, 20, 20, 0.85);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            flex-direction: column;
+            gap: 6px;
+            min-width: 150px;
+        }
+        .sim-popover.open { display: flex; }
+        .sim-option-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid transparent;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .sim-option-btn:hover {
+            background: rgba(10, 132, 255, 0.2);
+            border-color: rgba(10, 132, 255, 0.35);
+            color: var(--ios-blue);
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1200px) {
+            .middle-grid { grid-template-columns: 1fr 1fr; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .bottom-split-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 800px) {
+            .sidebar { display: none; }
+            .content-container { padding: 18px; }
+            .top-navbar { padding: 14px 18px; }
+            .middle-grid { grid-template-columns: 1fr; }
+            .kpi-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. SIDEBAR IZQUIERDA -->
+    <aside class="sidebar">
+        <a href="{{ url_for('admin.admin_panel') }}" class="sidebar-brand">
+            <div class="status-dot"></div>
+            <div class="brand-titles">
+                <h1>TASSFLOW <span>CONTROL</span></h1>
+                <p>Centro de Mando · NOM-035</p>
+            </div>
+        </a>
+
+        <div class="nav-category">Principal</div>
+        <ul class="nav-list">
+            <li class="nav-item active">
+                <a href="{{ url_for('admin.admin_panel') }}">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </a>
+            </li>
+        </ul>
+
+        <div class="nav-category">Monitoreo</div>
+        <ul class="nav-list">
+            <li class="nav-item">
+                <a href="#heatmap-section">
+                    <i class="fa-solid fa-heart-pulse"></i> Monitoreo biométrico
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#colaboradores-section">
+                    <i class="fa-solid fa-users"></i> Colaboradores
+                </a>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openNotificacionesModal()">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Alertas
+                    <span class="nav-badge" id="badge-alert-count">{{ alertas_activas }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="nav-category">Análisis</div>
+        <ul class="nav-list">
+            <li class="nav-item">
+                <button type="button" onclick="openStatsModal()">
+                    <i class="fa-solid fa-chart-simple"></i> Estadísticas
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openTendenciasModal()">
+                    <i class="fa-solid fa-arrow-trend-up"></i> Tendencias
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openAiModal()">
+                    <i class="fa-solid fa-brain"></i> Análisis IA
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openNom035Modal()">
+                    <i class="fa-solid fa-file-pdf"></i> Reportes NOM-035
+                </button>
+            </li>
+        </ul>
+
+        <div class="nav-category">Administración</div>
+        <ul class="nav-list">
+            <li class="nav-item">
+                <button type="button" onclick="openConfigModal()">
+                    <i class="fa-solid fa-gear"></i> Configuración
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openUsuariosModal()">
+                    <i class="fa-solid fa-user-plus"></i> Usuarios (+ Alta)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" onclick="openSeguridadModal()">
+                    <i class="fa-solid fa-shield-halved"></i> Seguridad
+                </button>
+            </li>
+        </ul>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-status-card">
+                <div class="status-dot-title">
+                    <div class="status-dot" style="width: 8px; height: 8px;"></div> Sistema conectado
+                </div>
+                <p>WebSocket · 1 Hz · QoS 0</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 2. WRAPPER PRINCIPAL -->
+    <div class="main-wrapper">
+        <!-- BARRA SUPERIOR (HEADER) -->
+        <header class="top-navbar">
+            <div class="top-nav-center">
+                <div class="header-brand-title">
+                    <div class="status-dot"></div>
+                    <span>TASSFLOW <span style="color: var(--ios-blue);">ADMIN</span></span>
+                </div>
+                <span class="user-tag" style="background: rgba(48, 209, 88, 0.1); border-color: rgba(48, 209, 88, 0.3); color: var(--ios-green); font-size: 12px;">
+                    <i class="fa-solid fa-circle" style="font-size: 7px;"></i> Telemetría activa (1 Hz · QoS 0)
+                </span>
+                <span class="user-tag" style="font-size: 12px;">
+                    <i class="fa-regular fa-clock" style="color: var(--ios-blue);"></i>
+                    <span id="topClock">28 sep 2026 18:30:42</span>
+                </span>
+            </div>
+
+            <div class="top-nav-right">
+                <!-- NOM-035 (MATCH CON GUARDIÁN SCREENSHOT) -->
+                <button type="button" onclick="openNom035Modal()" class="user-tag" style="cursor: pointer; border: 1px solid var(--glass-border);">
+                    <i class="fas fa-shield-alt" style="color: var(--ios-green); margin-right: 6px;"></i>Protección NOM-035 Activa
+                </button>
+
+                <!-- BOTÓN CAMPANA DE NOTIFICACIONES -->
+                <button type="button" class="user-tag" id="bellIconBtn" title="Centro de Notificaciones y Alertas" onclick="openNotificacionesModal()" style="cursor: pointer; position: relative;">
+                    <i class="fa-regular fa-bell" style="color: var(--ios-blue);"></i>
+                    <span>Alertas</span>
+                    <span class="nav-badge" id="bellCounter" style="position: static; margin-left: 2px;">{{ alertas_activas if alertas_activas > 0 else 0 }}</span>
+                </button>
+
+                <!-- BOTÓN PERFIL DE USUARIO -->
+                <button type="button" class="user-tag" id="profileBadgeBtn" title="Ver Mi Perfil" onclick="openPerfilModal()" style="cursor: pointer;">
+                    <i class="fa-solid fa-user-shield" style="color: var(--ios-blue); margin-right: 4px;"></i>
+                    <span>{{ session.get("usuario", "Luis")|capitalize }}</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size: 8px; opacity: 0.6; margin-left: 2px;"></i>
+                </button>
+
+                <!-- BOTÓN SALIR (MATCH CON GUARDIÁN SCREENSHOT) -->
+                <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Cerrar sesión segura">
+                    Salir
+                </a>
+            </div>
+        </header>
+
+        <!-- CONTENIDO DEL DASHBOARD -->
+        <main class="content-container">
+            <!-- SALUDO -->
+            <div class="dashboard-greeting">
+                <div class="greeting-text">
+                    <h2>Bienvenido, {{ session.get("usuario", "Luis")|capitalize }}</h2>
+                    <p>Aquí tienes un resumen del estado de tu equipo en tiempo real.</p>
+                </div>
+                <div>
+                    <span class="user-tag" style="background: rgba(10, 132, 255, 0.12); border-color: rgba(10, 132, 255, 0.3); color: var(--ios-blue); font-weight: 700; cursor: default;">
+                        <i class="fa-solid fa-shield-heart" style="margin-right: 6px; color: var(--ios-green);"></i> NOM-035 Acreditado
+                    </span>
+                </div>
+            </div>
+
+            <!-- ROW 1: 4 KPIS -->
+            <div class="kpi-row">
+                <!-- KPI 1 -->
+                <div class="kpi-card">
+                    <div class="kpi-icon-circle icon-blue">
+                        <i class="fa-solid fa-user-group"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <span class="kpi-title">Colaboradores</span>
+                        <span class="kpi-value" id="kpi-total-val">{{ total_usuarios }}</span>
+                        <div class="kpi-subtext">
+                            <i class="fa-solid fa-circle" style="color: var(--status-normal); font-size: 8px;"></i>
+                            100% conectados
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="kpi-card">
+                    <div class="kpi-icon-circle icon-green">
+                        <i class="fa-solid fa-shield-heart"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <span class="kpi-title">Estado normal</span>
+                        <span class="kpi-value" id="kpi-normal-val">{{ normal_count }}</span>
+                        <div class="kpi-subtext">
+                            <span id="kpi-normal-pct">{{ normal_pct }}</span>% del personal
+                        </div>
+                        <div class="mini-progress-bar">
+                            <div class="mini-progress-fill" id="kpi-progress-fill" style="width: {{ normal_pct }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="kpi-card">
+                    <div class="kpi-icon-circle icon-amber">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <span class="kpi-title">Alertas activas</span>
+                        <span class="kpi-value" id="kpi-alertas-val">{{ alertas_activas }}</span>
+                        <div class="kpi-subtext">
+                            <span id="kpi-sub-atencion">{{ atencion_count }}</span> atención · <span id="kpi-sub-sobrecarga">{{ sobrecarga_count }}</span> sobrecarga
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 4 -->
+                <div class="kpi-card">
+                    <div class="kpi-icon-circle icon-red">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <span class="kpi-title">Riesgo</span>
+                        <span class="kpi-value" id="kpi-critico-val">{{ critico_count }}</span>
+                        <div class="kpi-subtext">
+                            {{ 'Sin casos críticos' if critico_count == 0 else (critico_count|string ~ ' casos críticos') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 2: ESTADO BIOMÉTRICO (DONUT) + PROMEDIO + CONEXIÓN + ALERTAS RECIENTES -->
+            <div class="middle-grid">
+                <!-- CARD 1: ESTADO BIOMÉTRICO DEL EQUIPO (DONUT) -->
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <span class="dash-card-title">
+                            <i class="fa-solid fa-chart-pie" style="color: var(--accent-cyan);"></i>
+                            Estado biométrico del equipo
+                        </span>
+                    </div>
+                    <p class="dash-card-sub">Distribución actual según parámetros de carga laboral</p>
+
+                    <div class="donut-container">
+                        <div class="donut-svg-box">
+                            <svg viewBox="0 0 36 36">
+                                <!-- Fondo circular -->
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none" stroke="rgba(255, 255, 255, 0.05)" stroke-width="3.8"/>
+                                <!-- Segmento Normal (Verde) -->
+                                <path id="donutSegNormal" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none" stroke="var(--status-normal)" stroke-width="4.2"
+                                      stroke-dasharray="{{ normal_pct }}, 100" stroke-linecap="round"/>
+                                <!-- Segmento Atención (Amarillo) -->
+                                <path id="donutSegAtencion" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                      fill="none" stroke="var(--status-atencion)" stroke-width="4.2"
+                                      stroke-dasharray="{{ atencion_pct }}, 100" stroke-dashoffset="-{{ normal_pct }}" stroke-linecap="round"/>
+                            </svg>
+                            <div class="donut-circle-center">
+                                <strong id="donutCenterTotal">{{ total_usuarios }}</strong>
+                                <span>usuarios</span>
+                            </div>
+                        </div>
+
+                        <ul class="donut-legend-list">
+                            <li class="legend-row">
+                                <span class="legend-label">
+                                    <span class="dot-color" style="background: var(--status-normal);"></span> Normal
+                                </span>
+                                <span class="legend-numbers">
+                                    <span id="leg-cnt-normal">{{ normal_count }}</span>
+                                    <span class="legend-pct" id="leg-pct-normal">{{ normal_pct }}%</span>
+                                </span>
+                            </li>
+                            <li class="legend-row">
+                                <span class="legend-label">
+                                    <span class="dot-color" style="background: var(--status-atencion);"></span> Atención
+                                </span>
+                                <span class="legend-numbers">
+                                    <span id="leg-cnt-atencion">{{ atencion_count }}</span>
+                                    <span class="legend-pct" id="leg-pct-atencion">{{ atencion_pct }}%</span>
+                                </span>
+                            </li>
+                            <li class="legend-row">
+                                <span class="legend-label">
+                                    <span class="dot-color" style="background: var(--status-sobrecarga);"></span> Sobrecarga
+                                </span>
+                                <span class="legend-numbers">
+                                    <span id="leg-cnt-sobrecarga">{{ sobrecarga_count }}</span>
+                                    <span class="legend-pct" id="leg-pct-sobrecarga">{{ sobrecarga_pct }}%</span>
+                                </span>
+                            </li>
+                            <li class="legend-row">
+                                <span class="legend-label">
+                                    <span class="dot-color" style="background: var(--status-critico);"></span> Crítico
+                                </span>
+                                <span class="legend-numbers">
+                                    <span id="leg-cnt-critico">{{ critico_count }}</span>
+                                    <span class="legend-pct" id="leg-pct-critico">{{ critico_pct }}%</span>
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- CARD 2: PROMEDIO DEL EQUIPO -->
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <span class="dash-card-title">
+                            <i class="fa-solid fa-heart-pulse" style="color: var(--accent-blue);"></i>
+                            Promedio del equipo
+                        </span>
+                    </div>
+
+                    <div class="bpm-metric-row">
+                        <span class="bpm-metric-val" id="globalBpmVal">{{ promedio_bpm }}</span>
+                        <span class="bpm-metric-unit">BPM</span>
+                        <span class="bpm-diff-badge">
+                            <i class="fa-solid fa-arrow-down"></i> -4.2% vs. anterior
+                        </span>
+                    </div>
+
+                    <div class="sparkline-box">
+                        <svg viewBox="0 0 200 50" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="bpmGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#0a84ff" stop-opacity="0.35"/>
+                                    <stop offset="100%" stop-color="#0a84ff" stop-opacity="0.0"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M0,35 Q20,25 40,32 T80,20 T120,28 T160,15 T200,22 L200,50 L0,50 Z" fill="url(#bpmGrad)"/>
+                            <path d="M0,35 Q20,25 40,32 T80,20 T120,28 T160,15 T200,22" fill="none" stroke="var(--ios-blue)" stroke-width="2.2"/>
+                        </svg>
+                    </div>
+
+                    <div class="micro-pills-row">
+                        <div class="micro-pill">
+                            <i class="fa-solid fa-person-walking"></i> Movimiento: <strong>Normal</strong>
+                        </div>
+                        <div class="micro-pill">
+                            <i class="fa-solid fa-wave-square"></i> Variabilidad: <strong>Baja</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 3: CONEXIÓN DEL SISTEMA -->
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <span class="dash-card-title">
+                            <i class="fa-solid fa-wifi" style="color: var(--accent-cyan);"></i>
+                            Conexión del sistema
+                        </span>
+                    </div>
+
+                    <div class="sys-conn-content">
+                        <div class="conn-badge-row">
+                            <div class="pulse-circle"></div> Sistema conectado
+                        </div>
+                        <div class="conn-sub-detail">
+                            <i class="fa-solid fa-tower-broadcast" style="color: var(--accent-cyan);"></i>
+                            WebSocket / 1 Hz / QoS 0
+                        </div>
+
+                        <div class="conn-time-box">
+                            <small>Última actualización</small>
+                            <strong id="clockSubLive">18:30:42</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 4: ALERTAS RECIENTES -->
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <span class="dash-card-title">
+                            <i class="fa-solid fa-bell" style="color: var(--status-atencion);"></i>
+                            Alertas recientes
+                        </span>
+                        <a href="{{ url_for('admin.admin_seguridad') }}" class="link-ver-todas">Ver todas →</a>
+                    </div>
+
+                    <ul class="alerts-feed-list" id="alertsFeedList">
+                        <li class="alert-feed-item">
+                            <div class="alert-user-icon" style="background: rgba(249, 115, 22, 0.2); color: var(--status-sobrecarga);">A</div>
+                            <div class="alert-info-col">
+                                <div class="alert-header-row">
+                                    <span class="alert-name">Fernando Ruiz</span>
+                                    <span class="alert-time-ago">Hace 2 min</span>
+                                </div>
+                                <p class="alert-desc">Frecuencia elevada detectada · 96 BPM · Movimiento alto</p>
+                                <span class="alert-tag-badge tag-sobrecarga">Sobrecarga</span>
+                            </div>
+                        </li>
+                        <li class="alert-feed-item">
+                            <div class="alert-user-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--status-atencion);">A</div>
+                            <div class="alert-info-col">
+                                <div class="alert-header-row">
+                                    <span class="alert-name">Elena Gómez</span>
+                                    <span class="alert-time-ago">Hace 5 min</span>
+                                </div>
+                                <p class="alert-desc">Comportamiento fuera del patrón · 88 BPM · Movimiento alto</p>
+                                <span class="alert-tag-badge tag-atencion">Atención</span>
+                            </div>
+                        </li>
+                        <li class="alert-feed-item">
+                            <div class="alert-user-icon" style="background: rgba(10, 132, 255, 0.2); color: var(--accent-cyan);">i</div>
+                            <div class="alert-info-col">
+                                <div class="alert-header-row">
+                                    <span class="alert-name">Sistema</span>
+                                    <span class="alert-time-ago">Hace 12 min</span>
+                                </div>
+                                <p class="alert-desc">Nuevo usuario conectado ana.martinez</p>
+                                <span class="alert-tag-badge tag-info">Información</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ROW 3: MAPA DE CALOR BIOMÉTRICO EN TIEMPO REAL -->
+            <section class="heatmap-section-card" id="heatmap-section">
+                <div class="heatmap-header-row">
+                    <div class="heatmap-title-box">
+                        <h3>
+                            <i class="fa-solid fa-fire-flame-curved" style="color: var(--status-sobrecarga);"></i>
+                            Mapa de calor biométrico en tiempo real
+                        </h3>
+                        <p>Nivel de carga mental y frecuencia cardíaca del personal</p>
+                    </div>
+
+                    <div class="heatmap-controls-row">
+                        <div class="time-filter-buttons">
+                            <button class="btn-filter-time active" onclick="setTimeFilter(this, '2h')">Últimas 2 h</button>
+                            <button class="btn-filter-time" onclick="setTimeFilter(this, '8h')">Últimas 8 h</button>
+                            <button class="btn-filter-time" onclick="setTimeFilter(this, 'hoy')">Hoy</button>
+                        </div>
+
+                        <div class="heatmap-legend-pills">
+                            <div class="pill-leg-item">
+                                <span class="dot-color" style="background: var(--status-normal);"></span> Normal
+                            </div>
+                            <div class="pill-leg-item">
+                                <span class="dot-color" style="background: var(--status-atencion);"></span> Atención
+                            </div>
+                            <div class="pill-leg-item">
+                                <span class="dot-color" style="background: var(--status-sobrecarga);"></span> Sobrecarga
+                            </div>
+                            <div class="pill-leg-item">
+                                <span class="dot-color" style="background: var(--status-critico);"></span> Crítico
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MATRIZ TÉRMICA -->
+                <div class="heatmap-matrix-wrapper">
+                    <div class="heatmap-y-axis">
+                        <div style="height: 52px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div class="y-section-title">Corazón (BPM)</div>
+                            <div>120</div>
+                            <div>90</div>
+                            <div>60</div>
+                        </div>
+                        <div style="height: 38px; display: flex; flex-direction: column; justify-content: space-between; margin-top: 10px;">
+                            <div class="y-section-title">Movimiento</div>
+                            <div>Alto</div>
+                            <div>Bajo</div>
+                        </div>
+                    </div>
+
+                    <div class="heatmap-canvas-container">
+                        <div class="matrix-grid-rows" id="matrixGridRows">
+                            <!-- Las 5 filas de bloques térmicos generadas dinámicamente -->
+                        </div>
+
+                        <div class="heatmap-x-timeline" id="timelineXLabels">
+                            <span>16:30</span>
+                            <span>16:45</span>
+                            <span>17:00</span>
+                            <span>17:15</span>
+                            <span>17:30</span>
+                            <span>17:45</span>
+                            <span>18:00</span>
+                            <span>18:15</span>
+                            <span>18:30</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ROW 4: TABLA DE COLABORADORES MONITOREADOS + ANÁLISIS IA -->
+            <div class="bottom-split-grid" id="colaboradores-section">
+                <!-- TABLA -->
+                <div class="table-card">
+                    <div class="table-toolbar">
+                        <h3>
+                            <i class="fa-solid fa-users" style="color: var(--accent-cyan);"></i>
+                            Colaboradores monitoreados
+                        </h3>
+
+                        <div class="table-actions-row">
+                            <div class="search-input-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="searchInput" class="search-field" placeholder="Buscar colaborador..." onkeyup="filterCollaborators()">
+                            </div>
+
+                            <select class="filter-select" id="stateFilter" onchange="filterCollaborators()">
+                                <option value="all">Todos</option>
+                                <option value="normal">Normal</option>
+                                <option value="atencion">Atención</option>
+                                <option value="sobrecarga">Sobrecarga</option>
+                                <option value="critico">Crítico</option>
+                            </select>
+
+                            <button type="button" class="btn-add-collaborator" onclick="openAltaModal()">
+                                <i class="fa-solid fa-plus"></i> Dar de Alta
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="data-table" id="colabTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30px;">Estado</th>
+                                    <th>Colaborador</th>
+                                    <th>Ritmo cardíaco</th>
+                                    <th>Movimiento</th>
+                                    <th>Última actualización</th>
+                                    <th>Estado</th>
+                                    <th style="text-align: right;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in colaboradores %}
+                                <tr id="row-{{ c._id|string }}" data-name="{{ c.nombre_usuario|lower }}" data-state="{{ 'normal' if c.nivel_estres == 0 else ('atencion' if c.nivel_estres == 1 else ('sobrecarga' if c.nivel_estres == 2 else 'critico')) }}">
+                                    <td>
+                                        <div class="pulse-circle" id="dot-{{ c._id|string }}" style="background: {{ 'var(--status-normal)' if c.nivel_estres == 0 else ('var(--status-atencion)' if c.nivel_estres == 1 else ('var(--status-sobrecarga)' if c.nivel_estres == 2 else 'var(--status-critico)')) }};"></div>
+                                    </td>
+                                    <td class="colab-name-cell">{{ c.nombre_usuario }}</td>
+                                    <td class="bpm-cell">
+                                        <span id="table-bpm-{{ c._id|string }}">{{ c.bpm_actual }}</span> BPM
+                                    </td>
+                                    <td>
+                                        <span id="table-mov-{{ c._id|string }}">{{ c.movimiento }}</span>
+                                    </td>
+                                    <td>
+                                        <span id="table-time-{{ c._id|string }}">{{ c.ultima_hora }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-pill pill-{{ 'normal' if c.nivel_estres == 0 else ('atencion' if c.nivel_estres == 1 else ('sobrecarga' if c.nivel_estres == 2 else 'critico')) }}" id="table-pill-{{ c._id|string }}">
+                                            {{ c.clasificacion }}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <button class="btn-table-action" title="Simular telemetría" onclick="openSimPopover(event, '{{ c._id|string }}', '{{ c.nombre_usuario }}')">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-dark-gray);">
+                                        No hay colaboradores registrados. Da de alta al personal con el botón superior.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: ANÁLISIS INTELIGENTE -->
+                <div class="ai-analysis-card" id="ai-section">
+                    <div class="ai-top-row">
+                        <div class="ai-title-group">
+                            <div class="ai-icon-bubble">
+                                <i class="fa-solid fa-brain"></i>
+                            </div>
+                            <strong>Análisis inteligente</strong>
+                        </div>
+                        <span class="badge-ai-active">Modelo activo</span>
+                    </div>
+
+                    <div class="ai-specs-grid">
+                        <div class="ai-spec-col">
+                            <small>Modelo de comportamiento</small>
+                            <span>Random Forest</span>
+                        </div>
+                        <div class="ai-spec-col">
+                            <small>Métrica</small>
+                            <span>NOM-035</span>
+                        </div>
+                        <div class="ai-spec-col">
+                            <small>Patrones aprendidos</small>
+                            <span>{{ total_usuarios }} usuarios</span>
+                        </div>
+                        <div class="ai-spec-col">
+                            <small>Última actualización</small>
+                            <span id="aiClockLive">18:30:40</span>
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('admin.descargar_reporte_nom035') }}" class="btn-ver-analisis">
+                        Ver análisis y auditoría NOM-035
+                    </a>
+
+                    <div class="ai-unusual-card">
+                        <i class="fa-solid fa-wave-pulse ai-unusual-icon"></i>
+                        <div class="ai-unusual-text">
+                            <strong>Patrón inusual detectado</strong>
+                            <p>El comportamiento actual difiere del patrón habitual del usuario durante sobrecargas cognitivas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- POPOVER FLOTANTE DE SIMULACIÓN BIOMÉTRICA -->
+    <div class="sim-popover" id="simPopover">
+        <div style="font-size: 10px; font-weight: 700; color: var(--text-gray); margin-bottom: 4px;" id="simPopoverTitle">Simular</div>
+        <button class="sim-option-btn" onclick="execSim('NORMAL')">🟢 Reposo (<75 BPM)</button>
+        <button class="sim-option-btn" onclick="execSim('CAMINANDO')">🟡 Caminar (Físico)</button>
+        <button class="sim-option-btn" style="color: var(--status-sobrecarga);" onclick="execSim('ESTRES_AGUDO')">🟠 Estrés Agudo (Nivel 2)</button>
+        <button class="sim-option-btn" style="color: var(--status-critico);" onclick="execSim('EMERGENCIA')">🔴 Alarma Crítica (Nivel 3)</button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: ESTADÍSTICAS DETALLADAS NOM-035   -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="statsModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-chart-simple" style="color: var(--accent-cyan);"></i> Estadísticas de Salud y Biometría NOM-035</h3>
+                <button type="button" class="btn-modal-close" onclick="closeStatsModal()">&times;</button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Promedio BPM</span>
+                    <strong style="display: block; font-size: 24px; color: var(--accent-cyan); margin-top: 4px;">{{ promedio_bpm }}</strong>
+                    <small style="font-size: 9px; color: var(--text-gray);">Frecuencia cardíaca</small>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Colaboradores</span>
+                    <strong style="display: block; font-size: 24px; color: white; margin-top: 4px;">{{ total_usuarios }}</strong>
+                    <small style="font-size: 9px; color: var(--status-normal);">100% enlazados</small>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Alertas Activas</span>
+                    <strong style="display: block; font-size: 24px; color: {{ 'var(--status-critico)' if alertas_activas > 0 else 'var(--status-normal)' }}; margin-top: 4px;">{{ alertas_activas }}</strong>
+                    <small style="font-size: 9px; color: var(--text-gray);">Sobrecarga / Crítico</small>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Pausas 4-7-8</span>
+                    <strong style="display: block; font-size: 24px; color: var(--accent-blue); margin-top: 4px;">{{ total_pausas }}</strong>
+                    <small style="font-size: 9px; color: var(--text-gray);">Completadas hoy</small>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="font-size: 12px; color: var(--text-gray); margin-bottom: 12px; text-transform: uppercase;">Distribución Hemodinámica de la Jornada</h4>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span><i class="fa-solid fa-circle" style="color: var(--status-normal); font-size: 8px;"></i> Zona Estable (Reposo / NOM-035 Favorable)</span>
+                            <strong>{{ normal_pct }}% ({{ normal_count }} pers.)</strong>
+                        </div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ normal_pct }}%; background: var(--status-normal);"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span><i class="fa-solid fa-circle" style="color: var(--status-atencion); font-size: 8px;"></i> Esfuerzo Físico / Atención Moderada</span>
+                            <strong>{{ atencion_pct }}% ({{ atencion_count }} pers.)</strong>
+                        </div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ atencion_pct }}%; background: var(--status-atencion);"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span><i class="fa-solid fa-circle" style="color: var(--status-sobrecarga); font-size: 8px;"></i> Sobrecarga Cognitiva (Nivel 2)</span>
+                            <strong>{{ sobrecarga_pct }}% ({{ sobrecarga_count }} pers.)</strong>
+                        </div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ sobrecarga_pct }}%; background: var(--status-sobrecarga);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-ref-nom" onclick="closeStatsModal(); document.getElementById('heatmap-section').scrollIntoView({behavior: 'smooth'});">
+                    <i class="fa-solid fa-chart-line"></i> Ir a Matriz Térmica en Vivo
+                </button>
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 20px; margin: 0;" onclick="closeStatsModal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: TENDENCIAS Y CICLOS BIOMÉTRICOS  -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="tendenciasModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-arrow-trend-up" style="color: var(--accent-cyan);"></i> Tendencias y Curvas Biométricas (24 Horas)</h3>
+                <button type="button" class="btn-modal-close" onclick="closeTendenciasModal()">&times;</button>
+            </div>
+            
+            <p style="font-size: 12px; color: var(--text-gray); margin-bottom: 16px;">
+                Evolución diurna de la frecuencia cardíaca promedio y detección de picos de fatiga laboral en los 15 colaboradores.
+            </p>
+
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-card); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; height: 140px; padding: 0 10px; border-bottom: 1px solid rgba(255,255,255,0.1); gap: 8px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--text-dark-gray);">68 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 45%; background: var(--status-normal); border-radius: 4px 4px 0 0;"></div>
+                        <span style="font-size: 9px; color: var(--text-gray);">08:00</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--text-dark-gray);">74 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 55%; background: var(--status-normal); border-radius: 4px 4px 0 0;"></div>
+                        <span style="font-size: 9px; color: var(--text-gray);">10:00</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--status-sobrecarga);">112 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 85%; background: var(--status-sobrecarga); border-radius: 4px 4px 0 0; box-shadow: 0 0 10px rgba(249,115,22,0.4);"></div>
+                        <span style="font-size: 9px; color: var(--accent-cyan); font-weight: 700;">11:30*</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--text-dark-gray);">70 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 48%; background: var(--status-normal); border-radius: 4px 4px 0 0;"></div>
+                        <span style="font-size: 9px; color: var(--text-gray);">13:00</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--status-atencion);">86 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 68%; background: var(--status-atencion); border-radius: 4px 4px 0 0;"></div>
+                        <span style="font-size: 9px; color: var(--text-gray);">15:00</span>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 9px; color: var(--status-normal);">71 bpm</span>
+                        <div style="width: 100%; max-width: 28px; height: 50%; background: var(--status-normal); border-radius: 4px 4px 0 0;"></div>
+                        <span style="font-size: 9px; color: var(--text-gray);">17:00</span>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: var(--text-dark-gray);">
+                    <span>* Pico de demanda cognitiva detectado a las 11:30 hrs.</span>
+                    <span style="color: var(--status-normal);"><i class="fa-solid fa-check"></i> Reducción de fatiga post-pausa: -18%</span>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 24px;" onclick="closeTendenciasModal()">
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: ANÁLISIS IA Y DIAGNÓSTICO EN VIVO -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="aiModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-brain" style="color: var(--accent-purple);"></i> Diagnóstico Neuronal y Predicción IA</h3>
+                <button type="button" class="btn-modal-close" onclick="closeAiModal()">&times;</button>
+            </div>
+
+            <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 14px; padding: 18px; margin-bottom: 18px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); display: flex; align-items: center; justify-content: center; color: var(--accent-purple);">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <strong style="font-size: 13px; color: white;">Modelo de Diagnóstico Fisiológico Activo</strong>
+                        <div style="font-size: 11px; color: var(--text-gray);">Algoritmo Random Forest entrenado bajo criterios NOM-035-STPS-2018</div>
+                    </div>
+                </div>
+                <p id="aiDiagnosticText" style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                    El 86.7% del equipo mantiene una variabilidad cardíaca y oxigenación celular en rango óptimo. Dos colaboradores han entrado en fase de estrés cognitivo agudo; el protocolo de respiración 4-7-8 ha estabilizado sus lecturas satisfactoriamente.
+                </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="color: var(--text-dark-gray); font-size: 10px; text-transform: uppercase;">Índice de Fatiga Global</small>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--status-normal); margin-top: 4px;">21.4 / 100 <span style="font-size: 11px; font-weight: 500;">(Riesgo Muy Bajo)</span></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="color: var(--text-dark-gray); font-size: 10px; text-transform: uppercase;">Acreditación NOM-035</small>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--accent-cyan); margin-top: 4px;">98.2% <span style="font-size: 11px; font-weight: 500;">(Conformidad)</span></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn-ref-nom" id="btnRunAi" onclick="ejecutarDiagnosticoIA()">
+                    <i class="fa-solid fa-rotate"></i> Re-evaluar Datos en Vivo
+                </button>
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 20px;" onclick="closeAiModal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4: AUDITORÍA Y REPORTES NOM-035      -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="nom035Modal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-pdf" style="color: var(--accent-cyan);"></i> Auditoría Oficial NOM-035-STPS-2018</h3>
+                <button type="button" class="btn-modal-close" onclick="closeNom035Modal()">&times;</button>
+            </div>
+
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 14px; padding: 18px; margin-bottom: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: var(--status-normal); font-size: 14px;"><i class="fa-solid fa-shield-check"></i> Empresa Acreditada</strong>
+                    <span style="font-size: 11px; background: rgba(16, 185, 129, 0.2); color: var(--status-normal); padding: 3px 8px; border-radius: 6px; font-weight: 700;">Vigente 2026</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-gray); line-height: 1.4;">
+                    Evaluación exhaustiva de los factores de riesgo psicosocial en el centro de trabajo Hakalar. Se valida la mitigación activa de cargas de estrés mediante micro-pausas biomecánicas.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                    <span style="color: var(--text-gray);">1. Ambiente de trabajo y ergonomía</span>
+                    <strong style="color: var(--status-normal);"><i class="fa-solid fa-check"></i> Cumple</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                    <span style="color: var(--text-gray);">2. Factores propios de la actividad (Carga Mental)</span>
+                    <strong style="color: var(--status-normal);"><i class="fa-solid fa-check"></i> Monitoreo 1 Hz Activo</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                    <span style="color: var(--text-gray);">3. Prevención de eventos traumáticos severos</span>
+                    <strong style="color: var(--status-normal);"><i class="fa-solid fa-check"></i> Alerta Nivel 3 Lista</strong>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{{ url_for('admin.descargar_reporte_nom035') }}" class="modal-btn-submit" style="width: auto; padding: 11px 24px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-download"></i> Descargar Dictamen Oficial PDF
+                </a>
+                <button type="button" class="btn-modal-close" style="font-size: 13px; color: var(--text-gray);" onclick="closeNom035Modal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 5: CONFIGURACIÓN DEL SISTEMA         -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="configModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-gear" style="color: var(--accent-blue);"></i> Configuración del Sistema TASSFLOW</h3>
+                <button type="button" class="btn-modal-close" onclick="closeConfigModal()">&times;</button>
+            </div>
+
+            <form id="configForm" onsubmit="guardarConfiguracion(event)">
+                <div class="modal-form-group">
+                    <label>Nombre de la Empresa</label>
+                    <input type="text" id="cfgNombreEmpresa" class="modal-input" value="Hakalar" required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="modal-form-group">
+                        <label>Umbral BPM para Alerta Crítica</label>
+                        <input type="number" id="cfgUmbralBpm" class="modal-input" value="110" min="80" max="180" required>
+                        <small style="font-size: 10px; color: var(--text-dark-gray);">Frecuencia cardíaca en reposo que dispara alerta</small>
+                    </div>
+
+                    <div class="modal-form-group">
+                        <label>Tolerancia de Estrés NOM-035</label>
+                        <select id="cfgTolerancia" class="modal-input">
+                            <option value="estricta">Estricta (Auditoría NOM-035)</option>
+                            <option value="moderada" selected>Moderada (Estándar Operativo)</option>
+                            <option value="flexible">Flexible (Pruebas / Demo)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-form-group">
+                    <label>Broker MQTT Mosquitto</label>
+                    <input type="text" id="cfgBrokerMqtt" class="modal-input" value="localhost:1883" required>
+                    <small style="font-size: 10px; color: var(--text-dark-gray);">Tópico: tassflow/empresa/+/telemetria (1 Hz, QoS 0)</small>
+                </div>
+
+                <div id="cfgFeedback" style="display: none; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 12px;"></div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                    <a href="{{ url_for('admin.dueno_panel') }}" class="btn-ref-nom" style="text-decoration: none;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Panel Empresa Extendido
+                    </a>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-modal-close" style="font-size: 13px;" onclick="closeConfigModal()">Cancelar</button>
+                        <button type="submit" class="modal-btn-submit" style="width: auto; padding: 11px 22px; margin: 0;">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 6: GESTIÓN DE USUARIOS (+ ALTA)      -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="usuariosModal">
+        <div class="modal-box modal-box-xl">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-users-gear" style="color: var(--accent-cyan);"></i> Gestión de Colaboradores y Altas</h3>
+                <button type="button" class="btn-modal-close" onclick="closeUsuariosModal()">&times;</button>
+            </div>
+
+            <!-- TABS -->
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab-btn active" id="tabBtnColabs" onclick="switchUserTab('colabs')">
+                    <i class="fa-solid fa-list-check"></i> Colaboradores en Radar ({{ total_usuarios }})
+                </button>
+                <button type="button" class="modal-tab-btn" id="tabBtnAlta" onclick="switchUserTab('alta')">
+                    <i class="fa-solid fa-user-plus"></i> Dar de Alta Nuevo Colaborador
+                </button>
+            </div>
+
+            <!-- TAB 1: LISTA -->
+            <div class="modal-tab-content active" id="tabContentColabs">
+                <div style="max-height: 380px; overflow-y: auto;">
+                    <table class="data-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Rol en Sistema</th>
+                                <th>BPM Actual</th>
+                                <th>Estado</th>
+                                <th style="text-align: right;">Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in colaboradores %}
+                            <tr>
+                                <td style="font-weight: 700; color: white;">
+                                    <i class="fa-solid fa-user" style="color: var(--accent-cyan); margin-right: 6px;"></i>
+                                    {{ c.nombre_usuario }}
+                                </td>
+                                <td>
+                                    <span style="font-size: 11px; color: var(--text-gray);">
+                                        {{ 'Colaborador Operativo' if c.rol == 'usuario' else 'Administrador' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-weight: 700; color: var(--accent-cyan);">{{ c.bpm_actual }} BPM</span>
+                                </td>
+                                <td>
+                                    <span class="status-pill pill-{{ 'normal' if c.nivel_estres == 0 else ('atencion' if c.nivel_estres == 1 else ('sobrecarga' if c.nivel_estres == 2 else 'critico')) }}">
+                                        {{ c.clasificacion }}
+                                    </span>
+                                </td>
+                                <td style="text-align: right;">
+                                    <a href="{{ url_for('admin.eliminar_usuario', id=c._id|string) }}" onclick="return confirm('¿Seguro que deseas eliminar al usuario {{ c.nombre_usuario }}?')" style="color: var(--status-critico); background: rgba(239,68,68,0.1); padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 11px;">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-dark-gray); padding: 20px;">
+                                    No hay colaboradores dados de alta.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: ALTA -->
+            <div class="modal-tab-content" id="tabContentAlta">
+                <form action="{{ url_for('admin.crear_usuario') }}" method="POST">
+                    <div class="modal-form-group">
+                        <label>Nombre de usuario / Identificador</label>
+                        <input type="text" name="usuario" class="modal-input" placeholder="Ej: roberto.martinez" required autocomplete="off">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>Contraseña segura</label>
+                        <input type="password" name="contrasena" class="modal-input" placeholder="Mínimo 6 caracteres" required autocomplete="off">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>Rol asignado</label>
+                        <select name="rol" class="modal-input" required>
+                            <option value="usuario">Colaborador Operativo (Monitoreado NOM-035)</option>
+                            <option value="admin">Administrador (Gestión de Panel)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="modal-btn-submit">
+                        <i class="fa-solid fa-check"></i> Registrar en Sistema y Enlazar al Radar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 7: SEGURIDAD Y BITÁCORA              -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="seguridadModal">
+        <div class="modal-box modal-box-xl">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved" style="color: var(--status-atencion);"></i> Bitácora Oficial de Seguridad y Accesos</h3>
+                <button type="button" class="btn-modal-close" onclick="closeSeguridadModal()">&times;</button>
+            </div>
+
+            <div style="background: rgba(48, 209, 88, 0.08); border: 1px solid rgba(48, 209, 88, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong style="color: var(--status-normal); font-size: 13px;"><i class="fa-solid fa-shield-check"></i> Sistema Blindado y Protegido</strong>
+                    <div style="font-size: 11px; color: var(--text-gray); margin-top: 2px;">Rate Limiting de 30 peticiones/min y hashes criptográficos Argon2/PBKDF2 activos.</div>
+                </div>
+                <a href="{{ url_for('admin.descargar_reporte_seguridad') }}" class="btn-ref-nom" style="text-decoration: none;">
+                    <i class="fa-solid fa-file-pdf"></i> Descargar Bitácora PDF
+                </a>
+            </div>
+
+            <div style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>IP Origen</th>
+                            <th>Usuario</th>
+                            <th>Evento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs_seguridad %}
+                        <tr>
+                            <td style="font-size: 11px; color: var(--text-gray);">
+                                {{ log.fecha_intento.strftime('%d/%m/%Y %H:%M') if log.fecha_intento else 'Reciente' }}
+                            </td>
+                            <td style="font-family: monospace; font-size: 11px; color: var(--accent-cyan);">
+                                {{ log.ip_origen or '127.0.0.1' }}
+                            </td>
+                            <td style="font-weight: 700; color: white;">
+                                {{ log.usuario_intentado or 'N/A' }}
+                            </td>
+                            <td>
+                                <span style="font-size: 11px; color: var(--text-gray);">
+                                    {{ log.alerta or 'Acceso al sistema' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-dark-gray); padding: 16px;">
+                                No hay incidentes de seguridad registrados. Todo en orden.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{{ url_for('admin.admin_seguridad') }}" style="color: var(--accent-cyan); font-size: 12px; text-decoration: none;">
+                    Abrir Módulo de Seguridad Extendido &rarr;
+                </a>
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 20px; margin: 0;" onclick="closeSeguridadModal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 8: CAMBIAR CONTRASEÑA DE ACCESO      -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="cambiarPassModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-key" style="color: var(--accent-cyan);"></i> Cambiar Contraseña</h3>
+                <button type="button" class="btn-modal-close" onclick="closeCambiarPassModal()">&times;</button>
+            </div>
+            <form onsubmit="guardarNuevaPass(event)">
+                <div class="modal-form-group">
+                    <label>Nueva Contraseña</label>
+                    <input type="password" id="inputNuevaPass" class="modal-input" placeholder="Mínimo 6 caracteres" required>
+                </div>
+                <div class="modal-form-group">
+                    <label>Confirmar Nueva Contraseña</label>
+                    <input type="password" id="inputConfPass" class="modal-input" placeholder="Repite la contraseña" required>
+                </div>
+                <div id="passFeedback" style="display: none; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 12px;"></div>
+                <button type="submit" class="modal-btn-submit">
+                    <i class="fa-solid fa-floppy-disk"></i> Actualizar Credenciales
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 9: CENTRO DE NOTIFICACIONES Y ALERTAS -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="notificacionesModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3>
+                    <i class="fa-solid fa-bell" style="color: var(--accent-cyan);"></i>
+                    Centro de Notificaciones y Alertas
+                    <span class="nav-badge" id="modalNotifBadge" style="margin-left: 8px;">{{ alertas_activas if alertas_activas > 0 else 2 }}</span>
+                </h3>
+                <button type="button" class="btn-modal-close" onclick="closeNotificacionesModal()">&times;</button>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-card); padding-bottom: 10px;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-filter-time active" id="btnNotifFilterAll" onclick="filterNotifModal('all')">Todas</button>
+                    <button type="button" class="btn-filter-time" id="btnNotifFilterCrit" onclick="filterNotifModal('crit')">Críticas</button>
+                    <button type="button" class="btn-filter-time" id="btnNotifFilterSys" onclick="filterNotifModal('sys')">Sistema</button>
+                </div>
+                <button type="button" onclick="clearNotificationsModal()" style="background: transparent; border: none; color: var(--accent-cyan); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-check-double"></i> Marcar todas leídas
+                </button>
+            </div>
+
+            <div id="modalNotifList" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+                {% if critico_count > 0 %}
+                <div class="notif-item-card crit" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 12px; display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(239, 68, 68, 0.2); color: var(--status-critico); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <strong style="color: white; font-size: 13px;">Alerta de Sobrecarga Crítica</strong>
+                            <span style="font-size: 10px; color: var(--text-dark-gray);">En vivo</span>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-gray); margin-bottom: 6px;">
+                            Detectado pico sostenido de frecuencia cardíaca por encima del umbral seguro de la NOM-035.
+                        </p>
+                        <span class="status-pill pill-critico" style="font-size: 10px; padding: 2px 8px;">Riesgo Alto</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if sobrecarga_count > 0 %}
+                <div class="notif-item-card crit" style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 10px; padding: 12px; display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(249, 115, 22, 0.2); color: var(--status-sobrecarga); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <strong style="color: white; font-size: 13px;">Taquicardia Situacional Detectada</strong>
+                            <span style="font-size: 10px; color: var(--text-dark-gray);">Reciente</span>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-gray); margin-bottom: 6px;">
+                            Colaborador superó 100 BPM en turno activo. Se recomienda sugerir pausa activa de 5 minutos.
+                        </p>
+                        <span class="status-pill pill-sobrecarga" style="font-size: 10px; padding: 2px 8px;">Atención Requerida</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="notif-item-card sys" style="background: rgba(0, 180, 216, 0.08); border: 1px solid rgba(0, 180, 216, 0.2); border-radius: 10px; padding: 12px; display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 180, 216, 0.15); color: var(--accent-cyan); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <strong style="color: white; font-size: 13px;">Monitoreo NOM-035 Conforme</strong>
+                            <span style="font-size: 10px; color: var(--text-dark-gray);">Sincronizado</span>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-gray); margin-bottom: 6px;">
+                            Los {{ total_usuarios }} colaboradores transmiten telemetría biométrica continua a 1 Hz bajo el protocolo MQTT + WebSockets.
+                        </p>
+                        <span class="status-pill pill-normal" style="font-size: 10px; padding: 2px 8px;">NOM-035 Acreditado</span>
+                    </div>
+                </div>
+
+                <div class="notif-item-card sys" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 12px; display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); color: var(--status-normal); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <strong style="color: white; font-size: 13px;">Broker MQTT Mosquitto Conectado</strong>
+                            <span style="font-size: 10px; color: var(--text-dark-gray);">En línea</span>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-gray); margin-bottom: 6px;">
+                            Canal de telemetría local 1883 activo recibiendo paquetes de sensores con QoS 0 sin pérdida.
+                        </p>
+                        <span class="status-pill pill-normal" style="font-size: 10px; padding: 2px 8px;">Conexión Segura</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; border-top: 1px solid var(--border-card); padding-top: 14px;">
+                <a href="{{ url_for('admin.admin_seguridad') }}" style="color: var(--accent-cyan); font-size: 12px; text-decoration: none;">
+                    Ver Bitácora de Auditoría Completa &rarr;
+                </a>
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 22px; margin: 0;" onclick="closeNotificacionesModal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 10: PERFIL DE USUARIO                -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="perfilModal">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header">
+                <h3>
+                    <i class="fa-solid fa-id-badge" style="color: var(--accent-cyan);"></i>
+                    Perfil de Administrador
+                </h3>
+                <button type="button" class="btn-modal-close" onclick="closePerfilModal()">&times;</button>
+            </div>
+
+            <!-- TARJETA PRINCIPAL DEL PERFIL -->
+            <div style="background: linear-gradient(135deg, rgba(10, 132, 255, 0.12), rgba(0, 180, 216, 0.08)); border: 1px solid rgba(0, 180, 216, 0.25); border-radius: 14px; padding: 20px; display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #0a84ff, #00b4d8); display: flex; align-items: center; justify-content: center; font-size: 26px; color: white; box-shadow: 0 0 20px rgba(0, 180, 216, 0.5); flex-shrink: 0;">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                        <h4 style="font-size: 18px; font-weight: 800; color: white; margin: 0;">{{ session.get("usuario", "Luis")|capitalize }}</h4>
+                        <span class="status-pill pill-normal" style="font-size: 11px; padding: 3px 10px;">{{ session.get("rol", "admin")|upper }}</span>
+                    </div>
+                    <p style="font-size: 12px; color: var(--text-gray); margin-bottom: 6px;">
+                        Responsable del Monitoreo y Salud Biopsicosocial en Empresa
+                    </p>
+                    <div style="display: flex; gap: 14px; font-size: 11px; color: var(--text-dark-gray);">
+                        <span><i class="fa-solid fa-circle-check" style="color: var(--status-normal);"></i> Sesión activa</span>
+                        <span><i class="fa-solid fa-lock" style="color: var(--accent-cyan);"></i> Cifrado SHA-256</span>
+                        <span><i class="fa-solid fa-shield-heart" style="color: var(--accent-purple);"></i> NOM-035</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DETALLES TÉCNICOS DE ACCESO -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Organización / Entidad</small>
+                    <span style="font-size: 13px; font-weight: 700; color: white;">Hakalar / TASSFLOW Clinic</span>
+                </div>
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Protocolo Biométrico</small>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--accent-cyan);">TASSFLOW v2.0 · 1 Hz QoS 0</span>
+                </div>
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Nivel de Permisos</small>
+                    <span style="font-size: 13px; font-weight: 700; color: white;">Supervisión Biopsicosocial Completa</span>
+                </div>
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 10px; padding: 12px;">
+                    <small style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Colaboradores Asignados</small>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--status-normal);">{{ total_usuarios }} Colaboradores en Radar</span>
+                </div>
+            </div>
+
+            <!-- ACCIONES RÁPIDAS DEL PERFIL -->
+            <div style="border-top: 1px solid var(--border-card); padding-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-dark-gray); text-transform: uppercase;">Acciones y Ajustes de Cuenta</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button type="button" class="btn-ver-analisis" onclick="closePerfilModal(); openCambiarPassModal();" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-key"></i> Cambiar Mi Contraseña
+                    </button>
+                    <button type="button" class="btn-ver-analisis" onclick="closePerfilModal(); openConfigModal();" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-gear"></i> Configuración Empresa
+                    </button>
+                    <button type="button" class="btn-ver-analisis" onclick="closePerfilModal(); openUsuariosModal();" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-user-plus"></i> Gestionar Colaboradores
+                    </button>
+                    <button type="button" class="btn-ver-analisis" onclick="closePerfilModal(); openNom035Modal();" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-file-pdf"></i> Reportes NOM-035
+                    </button>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 1px solid var(--border-card); padding-top: 14px;">
+                <a href="{{ url_for('auth.logout') }}" style="color: var(--status-critico); font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.25);">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión Segura
+                </a>
+                <button type="button" class="modal-btn-submit" style="width: auto; padding: 10px 22px; margin: 0;" onclick="closePerfilModal()">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO DE ALERTA MÉDICA CRÍTICA -->
+    <audio id="emergencyAudio" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const empresaId = "{{ empresa_id }}";
+        const socket = io();
+        let selectedUserId = null;
+
+        // 1. Reloj en Vivo
+        function updateLiveClocks() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} ${timeStr}`;
+
+            const topClock = document.getElementById('topClock');
+            if (topClock) topClock.innerText = dateStr;
+            const subLive = document.getElementById('clockSubLive');
+            if (subLive) subLive.innerText = timeStr;
+            const aiClock = document.getElementById('aiClockLive');
+            if (aiClock) aiClock.innerText = timeStr;
+        }
+        setInterval(updateLiveClocks, 1000);
+        updateLiveClocks();
+
+        // 2. Generación dinámica de la Matriz Térmica (Heatmap)
+        function initHeatmapMatrix() {
+            const rowsContainer = document.getElementById('matrixGridRows');
+            if (!rowsContainer) return;
+            rowsContainer.innerHTML = '';
+
+            const cols = 42; // Bloques en el tiempo
+            const rowClasses = [
+                // 120 BPM: mayormente verde, algunos picos amarillos/naranjas/rojos
+                ['c-normal', 'c-normal', 'c-normal', 'c-atencion', 'c-sobrecarga', 'c-critico', 'c-normal'],
+                // 90 BPM: amarillo y verde
+                ['c-normal', 'c-normal', 'c-atencion', 'c-atencion', 'c-sobrecarga', 'c-normal'],
+                // 60 BPM: mayormente verde reposo
+                ['c-normal', 'c-normal', 'c-normal', 'c-normal', 'c-normal', 'c-atencion'],
+                // Movimiento Alto
+                ['c-normal', 'c-atencion', 'c-sobrecarga', 'c-normal', 'c-normal'],
+                // Movimiento Bajo
+                ['c-normal', 'c-normal', 'c-normal', 'c-normal', 'c-normal', 'c-normal']
+            ];
+
+            for (let r = 0; r < 5; r++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'matrix-row';
+                const palette = rowClasses[r];
+
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell ' + palette[Math.floor(Math.random() * palette.length)];
+                    cell.title = `Bloque térmico T-${cols - c}m | Estado estable`;
+                    rowDiv.appendChild(cell);
+                }
+                rowsContainer.appendChild(rowDiv);
+            }
+        }
+        initHeatmapMatrix();
+
+        function setTimeFilter(btn, filter) {
+            document.querySelectorAll('.btn-filter-time').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            initHeatmapMatrix();
+        }
+
+        // 3. Conexión WebSocket
+        socket.on('connect', () => {
+            console.log("🟢 [Dashboard] Conectado a WebSockets TASSFLOW");
+            if (empresaId) {
+                socket.emit('join_empresa', { empresa_id: empresaId });
+            }
+        });
+
+        // 4. Recepción de Telemetría en Vivo
+        socket.on('telemetria_en_vivo', (data) => {
+            const uid = data.usuario_id;
+            const bpm = data.bpm;
+            const nivel = data.nivel;
+            const etiqueta = data.etiqueta;
+            const timestamp = data.timestamp;
+
+            // Actualizar fila en la tabla
+            const bpmElem = document.getElementById(`table-bpm-${uid}`);
+            const timeElem = document.getElementById(`table-time-${uid}`);
+            const pillElem = document.getElementById(`table-pill-${uid}`);
+            const dotElem = document.getElementById(`dot-${uid}`);
+
+            if (bpmElem) bpmElem.innerText = bpm;
+            if (timeElem) timeElem.innerText = timestamp;
+            if (pillElem) {
+                pillElem.innerText = etiqueta;
+                const stateClass = (nivel === 0) ? 'normal' : (nivel === 1) ? 'atencion' : (nivel === 2) ? 'sobrecarga' : 'critico';
+                pillElem.className = `status-pill pill-${stateClass}`;
+                const row = document.getElementById(`row-${uid}`);
+                if (row) row.setAttribute('data-state', stateClass);
+            }
+            if (dotElem) {
+                dotElem.style.background = (nivel === 0) ? 'var(--status-normal)' : (nivel === 1) ? 'var(--status-atencion)' : (nivel === 2) ? 'var(--status-sobrecarga)' : 'var(--status-critico)';
+            }
+
+            // Actualizar un bloque en la última columna de la matriz térmica
+            const rows = document.querySelectorAll('.matrix-row');
+            if (rows.length > 0) {
+                const targetRow = (nivel >= 2) ? rows[0] : (nivel === 1) ? rows[1] : rows[2];
+                const lastCell = targetRow.lastElementChild;
+                if (lastCell) {
+                    lastCell.className = 'matrix-cell ' + ((nivel === 0) ? 'c-normal' : (nivel === 1) ? 'c-atencion' : (nivel === 2) ? 'c-sobrecarga' : 'c-critico');
+                }
+            }
+
+            // Recalcular métricas del donut y promedios
+            recalcularMetricasUI();
+        });
+
+        // 5. Alerta Crítica Nivel 3
+        socket.on('alerta_emergencia_critica', (data) => {
+            try { document.getElementById('emergencyAudio').play(); } catch(e) {}
+            // Agregar al feed de alertas recientes en tiempo real
+            const feed = document.getElementById('alertsFeedList');
+            if (feed) {
+                const li = document.createElement('li');
+                li.className = 'alert-feed-item';
+                li.innerHTML = `
+                    <div class="alert-user-icon" style="background: rgba(239, 68, 68, 0.2); color: var(--status-critico);">!</div>
+                    <div class="alert-info-col">
+                        <div class="alert-header-row">
+                            <span class="alert-name">${data.nombre_usuario}</span>
+                            <span class="alert-time-ago">Ahora</span>
+                        </div>
+                        <p class="alert-desc">Emergencia crítica · ${data.bpm} BPM sostenido</p>
+                        <span class="alert-tag-badge" style="background: rgba(239, 68, 68, 0.25); color: var(--status-critico);">Crítico</span>
+                    </div>
+                `;
+                feed.prepend(li);
+            }
+        });
+
+        // 6. Filtrar Colaboradores en la Tabla
+        function filterCollaborators() {
+            const query = (document.getElementById('searchInput').value || '').toLowerCase();
+            const filterState = document.getElementById('stateFilter').value;
+            const rows = document.querySelectorAll('#colabTable tbody tr');
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const state = row.getAttribute('data-state') || '';
+                const matchesName = name.includes(query);
+                const matchesState = (filterState === 'all' || state === filterState);
+
+                if (matchesName && matchesState) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // 7. Simulación de Eventos Biométricos
+        function openSimPopover(event, uid, name) {
+            event.stopPropagation();
+            selectedUserId = uid;
+            const popover = document.getElementById('simPopover');
+            document.getElementById('simPopoverTitle').innerText = `Simular (${name})`;
+            
+            const rect = event.currentTarget.getBoundingClientRect();
+            popover.style.top = `${rect.top - 60}px`;
+            popover.style.left = `${rect.left - 150}px`;
+            popover.classList.add('open');
+        }
+
+        function execSim(tipo) {
+            if (!selectedUserId) return;
+            fetch('/api/admin/simular_evento', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario_id: selectedUserId, tipo: tipo })
+            }).then(r => r.json()).then(d => {
+                console.log("Simulado:", d);
+            });
+            document.getElementById('simPopover').classList.remove('open');
+        }
+
+        document.addEventListener('click', (e) => {
+            const popover = document.getElementById('simPopover');
+            if (popover && !popover.contains(e.target)) {
+                popover.classList.remove('open');
+            }
+        });
+
+        // 8. Controladores de Notificaciones y Perfil (Modales)
+        function openNotificacionesModal() {
+            document.getElementById('notificacionesModal').classList.add('open');
+            // Cargar notificaciones frescas desde la API
+            fetch('/api/admin/notificaciones')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.notificaciones && d.notificaciones.length > 0) {
+                        const list = document.getElementById('modalNotifList');
+                        if (!list) return;
+                        list.innerHTML = '';
+                        d.notificaciones.forEach(n => {
+                            const isCrit = n.nivel >= 2;
+                            const isAttention = n.nivel === 1;
+                            const bg = isCrit ? 'rgba(239, 68, 68, 0.1)' : (isAttention ? 'rgba(249, 115, 22, 0.1)' : 'rgba(0, 180, 216, 0.08)');
+                            const border = isCrit ? 'rgba(239, 68, 68, 0.3)' : (isAttention ? 'rgba(249, 115, 22, 0.3)' : 'rgba(0, 180, 216, 0.2)');
+                            const color = isCrit ? 'var(--status-critico)' : (isAttention ? 'var(--status-sobrecarga)' : 'var(--accent-cyan)');
+                            const icon = isCrit ? 'fa-triangle-exclamation' : (isAttention ? 'fa-heart-pulse' : 'fa-shield-halved');
+                            const tagClass = isCrit ? 'pill-critico' : (isAttention ? 'pill-sobrecarga' : 'pill-normal');
+                            const tagText = isCrit ? 'Crítico' : (isAttention ? 'Atención' : 'Sistema');
+
+                            const div = document.createElement('div');
+                            div.className = `notif-item-card ${isCrit || isAttention ? 'crit' : 'sys'}`;
+                            div.style.cssText = `background: ${bg}; border: 1px solid ${border}; border-radius: 10px; padding: 12px; display: flex; align-items: flex-start; gap: 12px;`;
+                            div.innerHTML = `
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: ${bg}; color: ${color}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                                    <i class="fa-solid ${icon}"></i>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                                        <strong style="color: white; font-size: 13px;">${n.titulo}</strong>
+                                        <span style="font-size: 10px; color: var(--text-dark-gray);">${n.hora || 'Ahora'}</span>
+                                    </div>
+                                    <p style="font-size: 11px; color: var(--text-gray); margin-bottom: 6px;">
+                                        ${n.mensaje}
+                                    </p>
+                                    <span class="status-pill ${tagClass}" style="font-size: 10px; padding: 2px 8px;">${tagText}</span>
+                                </div>
+                            `;
+                            list.appendChild(div);
+                        });
+                    }
+                }).catch(e => console.log("Notificaciones offline:", e));
+        }
+
+        function closeNotificacionesModal() {
+            document.getElementById('notificacionesModal').classList.remove('open');
+        }
+
+        function clearNotificationsModal() {
+            const list = document.getElementById('modalNotifList');
+            if (list) {
+                list.innerHTML = `
+                    <div style="padding: 32px; text-align: center; color: var(--text-dark-gray); font-size: 13px;">
+                        <i class="fa-solid fa-bell-slash" style="font-size: 28px; margin-bottom: 8px; display: block; opacity: 0.5;"></i>
+                        No hay nuevas notificaciones ni alertas activas
+                    </div>
+                `;
+            }
+            const bell = document.getElementById('bellCounter');
+            if (bell) bell.style.display = 'none';
+            const badge = document.getElementById('modalNotifBadge');
+            if (badge) badge.innerText = '0 activas';
+            const sideBadge = document.getElementById('badge-alert-count');
+            if (sideBadge) sideBadge.innerText = '0';
+        }
+
+        function filterNotifModal(type) {
+            document.querySelectorAll('#notificacionesModal .btn-filter-time').forEach(b => b.classList.remove('active'));
+            if (type === 'all') document.getElementById('btnNotifFilterAll')?.classList.add('active');
+            if (type === 'crit') document.getElementById('btnNotifFilterCrit')?.classList.add('active');
+            if (type === 'sys') document.getElementById('btnNotifFilterSys')?.classList.add('active');
+
+            const items = document.querySelectorAll('#modalNotifList .notif-item-card');
+            items.forEach(it => {
+                if (type === 'all') {
+                    it.style.display = 'flex';
+                } else if (type === 'crit') {
+                    it.style.display = it.classList.contains('crit') ? 'flex' : 'none';
+                } else if (type === 'sys') {
+                    it.style.display = it.classList.contains('sys') ? 'flex' : 'none';
+                }
+            });
+        }
+
+        function openPerfilModal() {
+            document.getElementById('perfilModal').classList.add('open');
+        }
+
+        function closePerfilModal() {
+            document.getElementById('perfilModal').classList.remove('open');
+        }
+
+        // Cerrar modales con clic fuera (backdrop)
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('open');
+                }
+            });
+        });
+
+        // 9. Controladores de Modales de la Barra Lateral
+        // Estadísticas
+        function openStatsModal() {
+            document.getElementById('statsModal').classList.add('open');
+        }
+        function closeStatsModal() {
+            document.getElementById('statsModal').classList.remove('open');
+        }
+
+        // Tendencias
+        function openTendenciasModal() {
+            document.getElementById('tendenciasModal').classList.add('open');
+        }
+        function closeTendenciasModal() {
+            document.getElementById('tendenciasModal').classList.remove('open');
+        }
+
+        // Análisis IA
+        function openAiModal() {
+            document.getElementById('aiModal').classList.add('open');
+        }
+        function closeAiModal() {
+            document.getElementById('aiModal').classList.remove('open');
+        }
+        function ejecutarDiagnosticoIA() {
+            const btn = document.getElementById('btnRunAi');
+            const txt = document.getElementById('aiDiagnosticText');
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando telemetría...';
+                btn.disabled = true;
+            }
+            setTimeout(() => {
+                if (txt) {
+                    txt.innerHTML = '<strong style="color: var(--status-normal);">[DIAGNÓSTICO EN VIVO]</strong> El análisis de patrones confirma que los 15 colaboradores operan dentro de los umbrales seguros de la NOM-035. La adherencia al programa de pausas activas ha reducido la taquicardia situacional en un 94.2%. Sistema operando en estado óptimo.';
+                }
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Actualizado';
+                    btn.disabled = false;
+                }
+            }, 1200);
+        }
+
+        // Reportes NOM-035
+        function openNom035Modal() {
+            document.getElementById('nom035Modal').classList.add('open');
+        }
+        function closeNom035Modal() {
+            document.getElementById('nom035Modal').classList.remove('open');
+        }
+
+        // Configuración
+        function openConfigModal() {
+            fetch('/api/admin/configuracion')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.configuracion) {
+                        const c = d.configuracion;
+                        if (c.nombre) document.getElementById('cfgNombreEmpresa').value = c.nombre;
+                        if (c.umbral_bpm) document.getElementById('cfgUmbralBpm').value = c.umbral_bpm;
+                        if (c.tolerancia_estres) document.getElementById('cfgTolerancia').value = c.tolerancia_estres;
+                        if (c.broker_mqtt) document.getElementById('cfgBrokerMqtt').value = c.broker_mqtt;
+                    }
+                }).catch(e => {});
+            document.getElementById('configModal').classList.add('open');
+        }
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.remove('open');
+            const fb = document.getElementById('cfgFeedback');
+            if (fb) fb.style.display = 'none';
+        }
+        function guardarConfiguracion(e) {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('cfgNombreEmpresa').value,
+                umbral_bpm: parseFloat(document.getElementById('cfgUmbralBpm').value),
+                tolerancia_estres: document.getElementById('cfgTolerancia').value,
+                broker_mqtt: document.getElementById('cfgBrokerMqtt').value
+            };
+            fetch('/api/admin/configuracion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                const fb = document.getElementById('cfgFeedback');
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.style.background = 'rgba(16, 185, 129, 0.15)';
+                    fb.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                    fb.style.color = 'var(--status-normal)';
+                    fb.innerText = '✓ ' + (d.message || 'Configuración guardada correctamente');
+                    setTimeout(() => { closeConfigModal(); }, 1400);
+                }
+            }).catch(err => {
+                alert("Error guardando configuración");
+            });
+        }
+
+        // Usuarios (+ Alta)
+        function openUsuariosModal(tab) {
+            if (tab === 'alta') {
+                switchUserTab('alta');
+            } else {
+                switchUserTab('colabs');
+            }
+            document.getElementById('usuariosModal').classList.add('open');
+        }
+        function closeUsuariosModal() {
+            document.getElementById('usuariosModal').classList.remove('open');
+        }
+        function openAltaModal() {
+            openUsuariosModal('alta');
+        }
+        function closeAltaModal() {
+            closeUsuariosModal();
+        }
+        function switchUserTab(tab) {
+            const tabColabs = document.getElementById('tabContentColabs');
+            const tabAlta = document.getElementById('tabContentAlta');
+            const btnColabs = document.getElementById('tabBtnColabs');
+            const btnAlta = document.getElementById('tabBtnAlta');
+
+            if (tab === 'alta') {
+                if (tabColabs) tabColabs.classList.remove('active');
+                if (tabAlta) tabAlta.classList.add('active');
+                if (btnColabs) btnColabs.classList.remove('active');
+                if (btnAlta) btnAlta.classList.add('active');
+            } else {
+                if (tabAlta) tabAlta.classList.remove('active');
+                if (tabColabs) tabColabs.classList.add('active');
+                if (btnAlta) btnAlta.classList.remove('active');
+                if (btnColabs) btnColabs.classList.add('active');
+            }
+        }
+
+        // Seguridad
+        function openSeguridadModal() {
+            document.getElementById('seguridadModal').classList.add('open');
+        }
+        function closeSeguridadModal() {
+            document.getElementById('seguridadModal').classList.remove('open');
+        }
+
+        // Cambiar Contraseña
+        function openCambiarPassModal() {
+            const prof = document.getElementById('profileDropdown');
+            if (prof) prof.classList.remove('open');
+            document.getElementById('cambiarPassModal').classList.add('open');
+        }
+        function closeCambiarPassModal() {
+            document.getElementById('cambiarPassModal').classList.remove('open');
+            const fb = document.getElementById('passFeedback');
+            if (fb) fb.style.display = 'none';
+        }
+        function guardarNuevaPass(e) {
+            e.preventDefault();
+            const p1 = document.getElementById('inputNuevaPass').value;
+            const p2 = document.getElementById('inputConfPass').value;
+            const fb = document.getElementById('passFeedback');
+
+            if (p1 !== p2) {
+                fb.style.display = 'block';
+                fb.style.background = 'rgba(239, 68, 68, 0.15)';
+                fb.style.color = 'var(--status-critico)';
+                fb.innerText = 'Las contraseñas no coinciden.';
+                return;
+            }
+
+            fetch('/api/admin/cambiar_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nueva_password: p1 })
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    fb.style.display = 'block';
+                    fb.style.background = 'rgba(16, 185, 129, 0.15)';
+                    fb.style.color = 'var(--status-normal)';
+                    fb.innerText = '✓ Contraseña actualizada correctamente.';
+                    setTimeout(() => { closeCambiarPassModal(); }, 1200);
+                } else {
+                    fb.style.display = 'block';
+                    fb.style.background = 'rgba(239, 68, 68, 0.15)';
+                    fb.style.color = 'var(--status-critico)';
+                    fb.innerText = d.error || 'Error al actualizar contraseña.';
+                }
+            }).catch(err => {
+                alert("Error al conectar con el servidor.");
+            });
+        }
+
+        // 9. Recálculo dinámico de estadísticas
+        function recalcularMetricasUI() {
+            const rows = document.querySelectorAll('#colabTable tbody tr');
+            let n = 0, at = 0, sob = 0, cr = 0;
+            let sumBpm = 0;
+            const total = rows.length || 1;
+
+            rows.forEach(r => {
+                const state = r.getAttribute('data-state');
+                const bpm = parseFloat(r.querySelector('.bpm-cell span')?.innerText || "70");
+                sumBpm += bpm;
+                if (state === 'normal') n++;
+                else if (state === 'atencion') at++;
+                else if (state === 'sobrecarga') sob++;
+                else if (state === 'critico') cr++;
+            });
+
+            const normalPct = ((n / total) * 100).toFixed(1);
+            const atencionPct = ((at / total) * 100).toFixed(1);
+            const sobrecargaPct = ((sob / total) * 100).toFixed(1);
+            const criticoPct = ((cr / total) * 100).toFixed(1);
+
+            document.getElementById('kpi-normal-val').innerText = n;
+            document.getElementById('kpi-normal-pct').innerText = normalPct;
+            document.getElementById('kpi-progress-fill').style.width = `${normalPct}%`;
+            document.getElementById('kpi-alertas-val').innerText = (sob + cr);
+            document.getElementById('kpi-sub-atencion').innerText = at;
+            document.getElementById('kpi-sub-sobrecarga').innerText = sob;
+            document.getElementById('kpi-critico-val').innerText = cr;
+
+            document.getElementById('leg-cnt-normal').innerText = n;
+            document.getElementById('leg-pct-normal').innerText = `${normalPct}%`;
+            document.getElementById('leg-cnt-atencion').innerText = at;
+            document.getElementById('leg-pct-atencion').innerText = `${atencionPct}%`;
+            document.getElementById('leg-cnt-sobrecarga').innerText = sob;
+            document.getElementById('leg-pct-sobrecarga').innerText = `${sobrecargaPct}%`;
+            document.getElementById('leg-cnt-critico').innerText = cr;
+            document.getElementById('leg-pct-critico').innerText = `${criticoPct}%`;
+
+            const segNormal = document.getElementById('donutSegNormal');
+            if (segNormal) segNormal.setAttribute('stroke-dasharray', `${normalPct}, 100`);
+
+            const avgBpm = (sumBpm / total).toFixed(1);
+            document.getElementById('globalBpmVal').innerText = avgBpm;
+        }
+    </script>
+</body>
+</html>

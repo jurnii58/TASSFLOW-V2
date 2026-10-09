@@ -1,0 +1,35 @@
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node / JS dependencies
+node_modules/
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Environment variables & secrets
+.env
+.env.local
+
+# Logs
+*.log
+desktop_app.log
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Generated reports & dynamic uploads
+static/uploads/*
+tassflow_app/static/uploads/*
+!static/uploads/.gitkeep
+!tassflow_app/static/uploads/.gitkeep
+*.pdf

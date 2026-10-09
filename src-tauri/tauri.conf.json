@@ -1,0 +1,82 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "http://localhost:5000",
+    "distDir": "../tassflow_app/templates"
+  },
+  "package": {
+    "productName": "TASSFLOW",
+    "version": "2.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "notification": {
+        "all": true
+      },
+      "window": {
+        "all": true
+      }
+    },
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false
+    },
+    "bundle": {
+      "active": true,
+      "category": "Healthcare",
+      "copyright": "2026 TASSFLOW Biometrics",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/icon.ico",
+        "icons/icon.png"
+      ],
+      "identifier": "com.tassflow.biometrics",
+      "longDescription": "TASSFLOW v2.0 - Motor de Telemetría Biométrica, Salud Ocupacional y Cumplimiento NOM-035",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "providerShortName": null,
+        "entitlements": null
+      },
+      "resources": [],
+      "shortDescription": "TASSFLOW Radar Biométrico",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 900,
+        "resizable": true,
+        "title": "TASSFLOW v2.0 - Radar Biométrico y Salud Ocupacional",
+        "width": 1400,
+        "minHeight": 700,
+        "minWidth": 950,
+        "center": true,
+        "focus": true,
+        "url": "http://localhost:5000"
+      }
+    ]
+  }
+}
