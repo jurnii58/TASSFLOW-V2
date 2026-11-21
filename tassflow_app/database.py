@@ -8,25 +8,17 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/carga_mental_db")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "carga_mental_db")
 
-# Conexión a MongoDB Atlas o local con timeout adaptado para cloud replica sets y reintento
+# Conexión a MongoDB Atlas o local con timeout rápido y respaldo en memoria garantizado
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=15000, connectTimeoutMS=15000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000, connectTimeoutMS=3000)
     client.admin.command('ping')
     db = client[MONGO_DB_NAME]
     print(f"[OK] Conectado exitosamente a MongoDB Atlas [{MONGO_DB_NAME}]")
 except Exception as e:
-    try:
-        import time
-        time.sleep(1.0)
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=20000, connectTimeoutMS=20000)
-        client.admin.command('ping')
-        db = client[MONGO_DB_NAME]
-        print(f"[OK] Conectado exitosamente a MongoDB Atlas [{MONGO_DB_NAME}] (en reintento)")
-    except Exception as e2:
-        import mongomock
-        client = mongomock.MongoClient()
-        db = client[MONGO_DB_NAME]
-        print(f"[INFO] MongoDB Atlas no disponible ({e2}). Base de datos de respaldo en memoria activada.")
+    import mongomock
+    client = mongomock.MongoClient()
+    db = client[MONGO_DB_NAME]
+    print(f"[INFO] MongoDB Atlas no disponible ({e}). Base de datos de respaldo en memoria activada.")
 
 _db_initialized = False
 
@@ -75,46 +67,75 @@ def init_db():
     _db_initialized = True
 
 def sembrar_datos_piloto():
-    """Siembra empresa y colaboradores para demostración inmediata"""
+    """Siembra empresa Hakalar y colaboradores del piloto para demostración inmediata"""
     try:
-        import random
         from werkzeug.security import generate_password_hash
 
         empresa_id = empresas_col.insert_one({
-            "nombre_empresa": "TechCorp Health & Safety",
+            "nombre": "Hakalar",
+            "nombre_empresa": "hakalar",
             "fecha_creacion": datetime.now(),
             "estado": "Activo",
-            "sector": "Tecnologia / Consultoria",
+            "sector": "Tecnologia / Consultoria Integral",
             "normativa_aplicable": "NOM-035-STPS-2018"
         }).inserted_id
 
-        usuarios_col.insert_one({
-            "nombre_usuario": "director",
-            "nombre_completo": "Director General",
-            "contrasena": generate_password_hash("director123"),
-            "rol": "director",
-            "activo": True,
-            "empresa_id": empresa_id
-        })
+        usuarios_gestion = [
+            {
+                "nombre_usuario": "jurnii",
+                "nombre_completo": "Jurnii (Encargado / Director General)",
+                "contrasena": generate_password_hash("Turbo57K*"),
+                "rol": "director",
+                "activo": True,
+                "empresa_id": empresa_id
+            },
+            {
+                "nombre_usuario": "director",
+                "nombre_completo": "Director General Hakalar",
+                "contrasena": generate_password_hash("director123"),
+                "rol": "director",
+                "activo": True,
+                "empresa_id": empresa_id
+            },
+            {
+                "nombre_usuario": "luis",
+                "nombre_completo": "Luis (Gerente Operativo)",
+                "contrasena": generate_password_hash("Pixel%93Q"),
+                "rol": "admin",
+                "activo": True,
+                "empresa_id": empresa_id
+            },
+            {
+                "nombre_usuario": "admin",
+                "nombre_completo": "Administrador de Salud Ocupacional",
+                "contrasena": generate_password_hash("admin123"),
+                "rol": "admin",
+                "activo": True,
+                "empresa_id": empresa_id
+            }
+        ]
+        for ug in usuarios_gestion:
+            usuarios_col.insert_one(ug)
 
-        usuarios_col.insert_one({
-            "nombre_usuario": "admin",
-            "nombre_completo": "Administrador de Salud Ocupacional",
-            "contrasena": generate_password_hash("admin123"),
-            "rol": "admin",
-            "activo": True,
-            "empresa_id": empresa_id
-        })
-
-        NOMBRES_COLABORADORES = [
-            "Ana Martinez", "Carlos Lopez", "Elena Gomez", "Fernando Ruiz",
-            "Gabriela Diaz", "Hugo Morales", "Isabel Castro", "Javier Perez",
-            "Laura Ortiz", "Manuel Silva", "Natalia Reyes", "Oscar Torres",
-            "Patricia Vega", "Ricardo Nunez", "Sofia Medina"
+        COLABORADORES_PILOTO = [
+            ("sara", "Sara Vazquez", 70),
+            ("ana.martinez", "Ana Martinez", 68),
+            ("carlos.lopez", "Carlos Lopez", 72),
+            ("elena.gomez", "Elena Gomez", 67),
+            ("fernando.ruiz", "Fernando Ruiz", 74),
+            ("gabriela.diaz", "Gabriela Diaz", 69),
+            ("hugo.morales", "Hugo Morales", 71),
+            ("isabel.castro", "Isabel Castro", 68),
+            ("javier.perez", "Javier Perez", 73),
+            ("laura.ortiz", "Laura Ortiz", 70),
+            ("manuel.silva", "Manuel Silva", 72),
+            ("natalia.reyes", "Natalia Reyes", 67),
+            ("oscar.torres", "Oscar Torres", 75),
+            ("patricia.vega", "Patricia Vega", 69),
+            ("ricardo.nunez", "Ricardo Nunez", 71)
         ]
 
-        for i, nombre in enumerate(NOMBRES_COLABORADORES, start=1):
-            uname = f"empleado{i:02d}"
+        for uname, nombre, lb_bpm in COLABORADORES_PILOTO:
             uid = usuarios_col.insert_one({
                 "nombre_usuario": uname,
                 "nombre_completo": nombre,
@@ -127,11 +148,25 @@ def sembrar_datos_piloto():
             lineas_base_col.insert_one({
                 "usuario_id": uid,
                 "empresa_id": empresa_id,
-                "promedio_bpm": random.randint(66, 74),
+                "promedio_bpm": lb_bpm,
                 "fecha_calibracion": datetime.now(),
                 "calibrado": True
             })
-        print(f"[OK] 15 colaboradores del piloto inicializados con empresa_id: {empresa_id}")
+
+            telemetria_col.insert_one({
+                "timestamp": datetime.now(),
+                "metadata": {
+                    "usuario_id": uid,
+                    "empresa_id": str(empresa_id),
+                    "nombre_usuario": nombre
+                },
+                "bpm": float(lb_bpm),
+                "acc_magnitude": 1.0,
+                "nivel_estres": 0,
+                "clasificacion": "Normal",
+                "origen": "TASSFLOW Edge Gateway"
+            })
+        print(f"[OK] Empresa Hakalar y 15 colaboradores inicializados (ID: {empresa_id})")
     except Exception as e:
         print(f"[WARN] Error en sembrado inicial: {e}")
 
@@ -145,6 +180,9 @@ pausas_col = db["pausas_guiadas"]
 reportes_nom035_col = db["reportes_nom035"]
 actividades_col = db["actividades"]
 logs_seguridad = db["logs_seguridad"]
+
+# Inicializar base de datos y sembrar usuarios automáticamente al cargar
+init_db()
 
 def registrar_actividad(tipo, mensaje, empresa_id=None):
     """Registra auditoría administrativa con multi-tenancy"""

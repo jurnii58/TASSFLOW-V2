@@ -17,11 +17,11 @@ class ReporteNOM035PDF(FPDF):
         self.set_text_color(255, 255, 255)
         self.set_font('Helvetica', 'B', 18)
         self.set_xy(15, 10)
-        self.cell(0, 10, 'TASSFLOW v2.0 | AUDITORIA DE SALUD OCUPACIONAL', ln=True)
+        self.cell(0, 10, 'TASSFLOW v2.0 | EXPEDIENTE TECNICO DE SALUD OCUPACIONAL', ln=True)
         
         self.set_font('Helvetica', '', 10)
         self.set_text_color(180, 190, 210)
-        self.cell(0, 5, 'Cumplimiento Normativo NOM-035-STPS-2018 (Factores de Riesgo Psicosocial)', ln=True)
+        self.cell(0, 5, 'Monitoreo Preventivo bajo Lineamientos NOM-035-STPS-2018', ln=True)
 
     def footer(self):
         self.set_y(-20)
@@ -88,9 +88,10 @@ def generar_reporte_nom035(empresa_id):
     pdf.set_font('Helvetica', '', 9)
     pdf.set_text_color(50, 50, 50)
     texto_resumen = (
-        f"El presente certificado constata que la empresa {nombre_empresa} ha implementado el sistema de "
-        f"telemetria pasiva no intrusiva TASSFLOW v2.0 para la prevencion activa de sobrecarga mental y estres "
-        f"laboral agudo en su personal operativo, en estricto cumplimiento del numeral 7 y 8 de la NOM-035-STPS-2018."
+        f"El presente reporte tecnico constata que el centro de trabajo {nombre_empresa} ha implementado el sistema de "
+        f"telemetria pasiva no intrusiva TASSFLOW v2.0 para la prevencion activa de sobrecarga cognitiva, fatiga por "
+        f"pantallas y estres laboral en su personal de oficina y colaboradores de escritorio, en apego a los lineamientos "
+        f"preventivos de la NOM-035-STPS-2018 sobre factores de riesgo psicosocial."
     )
     pdf.multi_cell(0, 5, texto_resumen)
     pdf.ln(4)
@@ -164,12 +165,12 @@ def generar_reporte_nom035(empresa_id):
         
     pdf.ln(6)
     
-    # 5. Firma y Dictamen de Auditoría
+    # 5. Firma y Valoración Técnica de Auditoría Preventiva
     pdf.set_font('Helvetica', 'B', 10)
     pdf.set_text_color(30, 30, 30)
-    pdf.cell(0, 6, 'DICTAMEN TECNICO:', ln=True)
+    pdf.cell(0, 6, 'VALORACION TECNICA PREVENTIVA NOM-035:', ln=True)
     pdf.set_font('Helvetica', '', 8)
-    pdf.multi_cell(0, 4, "La infraestructura biometrica TASSFLOW v2.0 opera con exito en salvaguarda de la salud mental de los trabajadores, aplicando intervencion ergonomica-respiratoria preventiva con estricto apego a los estandares internacionales de telemetria IoT y normatividad laboral mexicana.")
+    pdf.multi_cell(0, 4, "La infraestructura biometrica TASSFLOW v2.0 opera como herramienta complementaria de monitoreo preventivo continuo para la salud psicosocial de los trabajadores, aplicando intervencion ergonomica-respiratoria inmediata conforme a las directrices de la NOM-035-STPS-2018.")
     
     pdf.ln(10)
     pdf.set_font('Helvetica', 'B', 8)

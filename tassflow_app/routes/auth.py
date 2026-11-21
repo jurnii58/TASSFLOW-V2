@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash 
 
-from tassflow_app.database import usuarios_col, empresas_col, db 
+from tassflow_app.database import usuarios_col, empresas_col, db, sembrar_datos_piloto 
 from tassflow_app import limiter 
 
 auth_bp = Blueprint('auth', __name__)
@@ -13,6 +13,9 @@ auth_bp = Blueprint('auth', __name__)
 @limiter.limit("30 per minute") # DEFENSA FUERZA BRUTA CON MARGEN FLEXIBLE
 def login():
     if request.method == "POST":
+        if usuarios_col.count_documents({}) == 0:
+            sembrar_datos_piloto()
+
         usuario_intento = (request.form.get("usuario") or "").strip()
         password_intento = (request.form.get("contrasena") or "").strip()
         ip_cliente = request.remote_addr or "127.0.0.1"
@@ -83,13 +86,15 @@ def login():
             if emp_activa:
                 session["empresa_id"] = str(emp_activa["_id"])
 
-        # Agregamos al "director" a la lista VIP del panel
+        # Redirección por rol específico
         if user["rol"] == "super_admin":
-            return redirect(url_for("admin.super_panel")) # Jurni va aquí
-        elif user["rol"] in ["director", "admin"]:
-            return redirect(url_for("admin.admin_panel")) # Ambos roles van al panel principal v2.0
+            return redirect(url_for("admin.super_panel"))
+        elif user["rol"] == "director":
+            return redirect(url_for("admin.dueno_panel")) # Jurnii / Dueño va a /panel_empresa
+        elif user["rol"] == "admin":
+            return redirect(url_for("admin.admin_panel")) # Luis / Admin va al Radar Biométrico /admin
         else:
-            return redirect(url_for("usuario.usuario_panel")) # Los empleados van aquí
+            return redirect(url_for("usuario.usuario_panel")) # Colaboradores van al Guardián /usuario
 
     return render_template("login.html")
 

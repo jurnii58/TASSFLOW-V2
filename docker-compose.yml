@@ -1,0 +1,70 @@
+# ==============================================================================
+# TASSFLOW v2.0 - Orquestación Docker Compose (Mosquitto + Flask/SocketIO + Spark Stream)
+# ==============================================================================
+version: "3.9"
+
+services:
+  # 1. Broker MQTT Eclipse Mosquitto (QoS 0 / 1 Hz)
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: tassflow-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - tassflow-net
+
+  # 2. Servidor Central TASSFLOW v2.0 (Flask + SocketIO + Clasificador Random Forest)
+  tassflow-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tassflow-web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - SECRET_KEY=${SECRET_KEY:-tassflow-secret-key-nom035-2026}
+      - MONGO_URI=${MONGO_URI:-mongodb://localhost:27017/carga_mental_db}
+      - MONGO_DB_NAME=${MONGO_DB_NAME:-carga_mental_db}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_QOS=0
+      - TELEMETRY_RATE_HZ=1
+    depends_on:
+      - mosquitto
+    networks:
+      - tassflow-net
+
+  # 3. Motor de Procesamiento Continuo (Spark Structured Streaming / Edge Window 5s)
+  tassflow-spark-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tassflow-spark-engine
+    restart: unless-stopped
+    command: ["python", "-m", "tassflow_app.streaming.spark_stream_engine"]
+    environment:
+      - MONGO_URI=${MONGO_URI:-mongodb://localhost:27017/carga_mental_db}
+      - MONGO_DB_NAME=${MONGO_DB_NAME:-carga_mental_db}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      - mosquitto
+      - tassflow-web
+    networks:
+      - tassflow-net
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+
+networks:
+  tassflow-net:
+    driver: bridge

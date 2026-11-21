@@ -1,0 +1,12 @@
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+.env
+src-tauri/target/
+*.log

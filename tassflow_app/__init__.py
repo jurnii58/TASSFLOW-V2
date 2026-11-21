@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 import os
 from datetime import datetime, timedelta
 from flask_limiter import Limiter
@@ -52,6 +52,17 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(usuario_bp)
+
+    # Ruta raíz para el Service Worker (Web Push Nativo - Sprint 5)
+    @app.route("/sw.js")
+    def service_worker():
+        response = send_from_directory(
+            os.path.join(app.root_path, "static", "js"),
+            "sw.js",
+            mimetype="application/javascript"
+        )
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
 
     @app.after_request
     def add_header(response):

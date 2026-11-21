@@ -9,23 +9,22 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         :root {
-            --glass-bg: rgba(18, 22, 36, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --ios-blue: #0a84ff;
-            --ios-green: #30d158;
-            --ios-orange: #ff9f0a;
-            --ios-red: #ff453a;
-            --text-main: #ffffff;
-            --text-muted: rgba(255, 255, 255, 0.65);
+            --glass-bg: #1A1D20;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --ios-blue: #60A5FA;
+            --ios-green: #10B981;
+            --ios-orange: #F59E0B;
+            --ios-red: #EF4444;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-            background: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2560&auto=format&fit=crop') no-repeat center center fixed;
-            background-size: cover;
-            background-color: #0f0f23;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+            background: #111315;
+            background-color: #111315;
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
@@ -397,6 +396,14 @@
         const socket = io();
 
         // 1. Unirse a la sala personal de WebSockets
+        // Registrar Service Worker para Notificaciones Nativas (Sprint 5)
+        let swGuardianReg = null;
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(reg => { swGuardianReg = reg; })
+                .catch(() => {});
+        }
+
         socket.on('connect', () => {
             console.log("🟢 Conectado a WebSockets TASSFLOW");
             socket.emit('join_usuario', { usuario_id: usuarioId });
@@ -405,6 +412,15 @@
         // 2. Escuchar la orden invasiva de Pausa Forzada Nivel 2
         socket.on('orden_pausa_forzada', (data) => {
             console.warn("⚠️ Orden de Pausa Forzada recibida:", data);
+            if ('Notification' in window && Notification.permission === 'granted' && swGuardianReg && swGuardianReg.active) {
+                swGuardianReg.active.postMessage({
+                    type: 'SHOW_NATIVE_NOTIFICATION',
+                    title: '🧘 Pausa Activa 4-7-8 Requerida',
+                    body: `Detectamos sobrecarga en escritorio (${data.bpm || 120} BPM). Toma 60 segundos de respiración guiada.`,
+                    nivel: 2,
+                    url: '/usuario'
+                });
+            }
             dispararPausaForzada(data.bpm || document.getElementById('live-bpm').innerText);
         });
 
@@ -551,6 +567,25 @@
                 }
 
                 logDiv.innerHTML = `⏳ Conectando con ${dispositivo.name || 'Dispositivo'}...`;
+
+                // Reconexión silenciosa automática ante micro-cortes Bluetooth (Sprint Cierre)
+                dispositivo.addEventListener('gattserverdisconnected', async () => {
+                    logDiv.innerHTML = `🔄 Reconectando silenciosamente con ${dispositivo.name || 'Wearable'}...`;
+                    for (let intento = 1; intento <= 3; intento++) {
+                        try {
+                            await new Promise(r => setTimeout(r, 1500 * intento));
+                            const srv = await dispositivo.gatt.connect();
+                            const svc = await srv.getPrimaryService('heart_rate');
+                            const chr = await svc.getCharacteristic('heart_rate_measurement');
+                            await chr.startNotifications();
+                            logDiv.innerHTML = `🟢 <b>Reconexión silenciosa exitosa:</b> ${dispositivo.name || 'Wearable'}.`;
+                            break;
+                        } catch (reErr) {
+                            console.log(`Intento de reconexión BLE ${intento} fallido.`);
+                        }
+                    }
+                });
+
                 const server = await dispositivo.gatt.connect();
 
                 let service;
