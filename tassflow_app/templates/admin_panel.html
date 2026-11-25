@@ -65,17 +65,21 @@
             --bg-input: #F1F5F9;
             --bg-subtle: #F8FAFC;
 
+            --color-primary: #0F172A;
+            --color-secondary: #64748B;
+            --color-complementary: #10B981;
+
             --glass-bg: #FFFFFF;
             --glass-bg-hover: #F8FAFC;
-            --glass-border: rgba(15, 23, 42, 0.08);
+            --glass-border: rgba(15, 23, 42, 0.1);
             --glass-border-focus: rgba(15, 23, 42, 0.25);
 
             --text-main: #0F172A;
             --text-white: #0F172A;
             --text-muted: #64748B;
-            --text-dark-gray: #94A3B8;
+            --text-dark-gray: #64748B;
             --text-gray: #64748B;
-            --border-card: rgba(15, 23, 42, 0.08);
+            --border-card: rgba(15, 23, 42, 0.1);
 
             --card-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
             --btn-primary-gradient: linear-gradient(135deg, #0F172A, #334155);
@@ -128,7 +132,7 @@
             align-items: center;
             justify-content: center;
             color: var(--color-primary);
-            filter: drop-shadow(0 0 12px rgba(217, 119, 54, 0.45));
+            filter: none;
         }
         .brand-titles h1 {
             font-size: 18px;
@@ -966,8 +970,9 @@
             transition: all 0.2s;
         }
         .btn-filter-time.active {
-            background: var(--color-primary);
-            color: #ffffff;
+            background: rgba(255, 255, 255, 0.14);
+            color: #F8FAFC;
+            border: 1px solid rgba(255, 255, 255, 0.25);
         }
 
         .heatmap-matrix-wrapper {
@@ -1149,17 +1154,17 @@
             width: 68px;
             height: 68px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+            background: rgba(255, 255, 255, 0.04);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 38px;
-            color: #C084FC;
-            filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.45));
+            font-size: 34px;
+            color: #94A3B8;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .ai-status-box {
-            background: rgba(168, 85, 247, 0.1);
-            border: 1px solid rgba(168, 85, 247, 0.25);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 12px;
             padding: 9px 11px;
             text-align: center;
@@ -1305,16 +1310,16 @@
         }
         .modal-overlay.open { display: flex; }
         .modal-box {
-            background: var(--bg-panel);
-            border: 1px solid var(--glass-border);
+            background: #1A1D20 !important;
+            border: 1px solid rgba(255, 255, 255, 0.09) !important;
             border-radius: 20px;
             width: 100%;
             max-width: 520px;
             max-height: 90vh;
             overflow-y: auto;
             padding: 26px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            color: var(--text-main);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+            color: #F8FAFC !important;
         }
         .modal-box-lg { max-width: 680px; }
         .modal-box-xl { max-width: 820px; }
@@ -1331,12 +1336,12 @@
             display: flex;
             align-items: center;
             gap: 9px;
-            color: var(--text-main);
+            color: #F8FAFC !important;
         }
         .btn-modal-close {
-            background: var(--bg-subtle);
-            border: 1px solid var(--glass-border);
-            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: 1px solid rgba(255, 255, 255, 0.09) !important;
+            color: #94A3B8 !important;
             width: 30px;
             height: 30px;
             border-radius: 50%;
@@ -1345,6 +1350,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-modal-close:hover {
+            background: rgba(255, 255, 255, 0.14) !important;
+            color: #FFFFFF !important;
         }
 
         .modal-form-group { margin-bottom: 14px; }
@@ -1352,41 +1362,45 @@
             display: block;
             font-size: 11px;
             font-weight: 700;
-            color: var(--text-muted);
+            color: #94A3B8;
             text-transform: uppercase;
             margin-bottom: 6px;
         }
         .modal-input {
             width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--glass-border);
+            background: #14171A !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 10px;
             padding: 10px 13px;
-            color: var(--text-main);
+            color: #F8FAFC !important;
             font-size: 13px;
             outline: none;
+            transition: border-color 0.2s;
         }
-        .modal-input:focus { border-color: var(--color-primary); }
+        .modal-input:focus { border-color: rgba(255, 255, 255, 0.35) !important; }
 
         .modal-btn-submit {
             width: 100%;
-            background: var(--btn-primary-gradient);
-            border: none;
+            background: #2A2E33 !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
             border-radius: 10px;
             padding: 11px 20px;
-            color: #ffffff;
+            color: #F8FAFC !important;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 6px 18px rgba(217, 119, 54, 0.35);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
             transition: all 0.2s;
         }
-        .modal-btn-submit:hover { transform: translateY(-1px); }
+        .modal-btn-submit:hover {
+            background: #343A40 !important;
+            transform: translateY(-1px);
+        }
 
         .btn-modal-cancel {
-            background: var(--bg-subtle);
-            border: 1px solid var(--glass-border);
-            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            color: #94A3B8;
             padding: 10px 20px;
             border-radius: 10px;
             font-size: 13px;
@@ -1395,13 +1409,17 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            transition: all 0.2s;
         }
-        .btn-modal-cancel:hover { color: var(--text-main); }
+        .btn-modal-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #F8FAFC;
+        }
 
         .btn-ref-nom {
-            background: rgba(217, 119, 54, 0.14);
-            border: 1px solid rgba(217, 119, 54, 0.35);
-            color: var(--color-primary);
+            background: rgba(245, 158, 11, 0.14) !important;
+            border: 1px solid rgba(245, 158, 11, 0.38) !important;
+            color: #F59E0B !important;
             padding: 9px 16px;
             border-radius: 10px;
             font-size: 12px;
@@ -1410,6 +1428,33 @@
             display: inline-flex;
             align-items: center;
             gap: 7px;
+            transition: all 0.2s;
+        }
+        .btn-ref-nom:hover {
+            background: rgba(245, 158, 11, 0.22) !important;
+            color: #FBBF24 !important;
+        }
+
+        /* REGLAS GLOBALES DE SINCRONÍA PARA MODALES (MINIMALISMO SALUD OCUPACIONAL) */
+        .modal-box div[style*="background: rgba(255,255,255"],
+        .modal-box div[style*="background: rgba(255, 255, 255"] {
+            background: #14171A !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .modal-box div[style*="background: rgba(0,0,0"],
+        .modal-box div[style*="background: rgba(0, 0, 0"] {
+            background: #14171A !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .modal-box strong[style*="color: white"],
+        .modal-box strong[style*="color:white"],
+        .modal-box span[style*="color: white"],
+        .modal-box span[style*="color:white"],
+        .modal-box div[style*="color: white"],
+        .modal-box div[style*="color:white"],
+        .modal-box td[style*="color: white"],
+        .modal-box td[style*="color:white"] {
+            color: #F8FAFC !important;
         }
 
         .btn-ai-run {
@@ -2124,55 +2169,55 @@
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
-                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Promedio BPM</span>
+                <div style="background: #14171A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Promedio BPM</span>
                     <strong style="display: block; font-size: 24px; color: var(--accent-cyan); margin-top: 4px;">{{ promedio_bpm }}</strong>
-                    <small style="font-size: 9px; color: var(--text-gray);">Frecuencia cardíaca</small>
+                    <small style="font-size: 9px; color: #64748B;">Frecuencia cardíaca</small>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
-                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Colaboradores</span>
-                    <strong style="display: block; font-size: 24px; color: white; margin-top: 4px;">{{ total_usuarios }}</strong>
+                <div style="background: #14171A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Colaboradores</span>
+                    <strong style="display: block; font-size: 24px; color: #F8FAFC; margin-top: 4px;">{{ total_usuarios }}</strong>
                     <small style="font-size: 9px; color: var(--status-normal);">100% enlazados</small>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
-                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Alertas Activas</span>
+                <div style="background: #14171A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Alertas Activas</span>
                     <strong style="display: block; font-size: 24px; color: {{ 'var(--status-critico)' if alertas_activas > 0 else 'var(--status-normal)' }}; margin-top: 4px;">{{ alertas_activas }}</strong>
-                    <small style="font-size: 9px; color: var(--text-gray);">Sobrecarga / Crítico</small>
+                    <small style="font-size: 9px; color: #64748B;">Sobrecarga / Crítico</small>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; text-align: center;">
-                    <span style="font-size: 10px; color: var(--text-dark-gray); text-transform: uppercase; font-weight: 700;">Pausas 4-7-8</span>
+                <div style="background: #14171A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; text-align: center;">
+                    <span style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Pausas 4-7-8</span>
                     <strong style="display: block; font-size: 24px; color: var(--accent-blue); margin-top: 4px;">{{ total_pausas }}</strong>
-                    <small style="font-size: 9px; color: var(--text-gray);">Completadas hoy</small>
+                    <small style="font-size: 9px; color: #64748B;">Completadas hoy</small>
                 </div>
             </div>
 
-            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
-                <h4 style="font-size: 12px; color: var(--text-gray); margin-bottom: 12px; text-transform: uppercase;">Distribución Hemodinámica de la Jornada</h4>
+            <div style="background: #14171A; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="font-size: 12px; color: #94A3B8; margin-bottom: 12px; text-transform: uppercase;">Distribución Hemodinámica de la Jornada</h4>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #F8FAFC;">
                             <span><i class="fa-solid fa-circle" style="color: var(--status-normal); font-size: 8px;"></i> Zona Estable (Reposo / NOM-035 Favorable)</span>
                             <strong>{{ normal_pct }}% ({{ normal_count }} pers.)</strong>
                         </div>
-                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
                             <div style="height: 100%; width: {{ normal_pct }}%; background: var(--status-normal);"></div>
                         </div>
                     </div>
                     <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #F8FAFC;">
                             <span><i class="fa-solid fa-circle" style="color: var(--status-atencion); font-size: 8px;"></i> Esfuerzo Físico / Atención Moderada</span>
                             <strong>{{ atencion_pct }}% ({{ atencion_count }} pers.)</strong>
                         </div>
-                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
                             <div style="height: 100%; width: {{ atencion_pct }}%; background: var(--status-atencion);"></div>
                         </div>
                     </div>
                     <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: #F8FAFC;">
                             <span><i class="fa-solid fa-circle" style="color: var(--status-sobrecarga); font-size: 8px;"></i> Sobrecarga Cognitiva (Nivel 2)</span>
                             <strong>{{ sobrecarga_pct }}% ({{ sobrecarga_count }} pers.)</strong>
                         </div>
-                        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden;">
+                        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
                             <div style="height: 100%; width: {{ sobrecarga_pct }}%; background: var(--status-sobrecarga);"></div>
                         </div>
                     </div>
